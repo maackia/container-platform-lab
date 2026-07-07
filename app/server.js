@@ -13,12 +13,7 @@ async function queryDb() {
   const client = new Client(dbConfig);
   await client.connect();
 
-  await client.query(`
-    CREATE TABLE IF NOT EXISTS visits (
-      id SERIAL PRIMARY KEY,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+  // 기존 테이블 생성 처리를 db/init/01-create-visits.sql 에서 처리
 
   await client.query("INSERT INTO visits DEFAULT VALUES");
 
