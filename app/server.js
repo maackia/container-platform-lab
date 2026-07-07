@@ -2,11 +2,11 @@ const http = require("http");
 const { Client } = require("pg");
 
 const dbConfig = {
-  host: process.env.DB_HOST || "db",
-  port: Number(process.env.DB_PORT || 5432),
-  user: process.env.DB_USER || "appuser",
-  password: process.env.DB_PASSWORD || "apppassword",
-  database: process.env.DB_NAME || "appdb",
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
 };
 
 async function queryDb() {
@@ -30,6 +30,12 @@ async function queryDb() {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (req.url === "/health") {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("OK\n");
+    return;
+  }
+
   try {
     const count = await queryDb();
 
