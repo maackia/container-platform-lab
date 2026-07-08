@@ -55,6 +55,7 @@ Client
 - `depends_on` with `service_healthy` conditions
 - PostgreSQL schema initialization using `db/init/01-create-visits.sql`
 - PostgreSQL inspection using `docker compose exec` and `psql`
+- Data-only PostgreSQL backup and restore practice using `pg_dump`
 
 ## Run
 
@@ -156,6 +157,71 @@ curl request
 -> visits count increases
 ```
 
+## Backup and Restore
+
+Local backup files are stored under `backups/`, which is ignored by Git because database dumps can contain sensitive data.
+
+Create the local backup directory:
+
+```bash
+mkdir -p backups
+```
+
+Check the current row count:
+
+```bash
+docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
+```
+
+Create a data-only backup:
+
+```bash
+docker compose exec -T db pg_dump -U appuser -d appdb --data-only > backups/appdb-data.sql
+```
+
+`-T` disables pseudo-TTY allocation. This is useful when redirecting command output to a file.
+
+Reset the database volume:
+
+```bash
+docker compose down -v
+docker compose up -d --build
+```
+
+After reset, the init SQL recreates the table, but the data is empty:
+
+```bash
+docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
+```
+
+Restore data from the backup:
+
+```bash
+docker compose exec -T db psql -U appuser -d appdb < backups/appdb-data.sql
+```
+
+Verify that the count is restored:
+
+```bash
+docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
+```
+
+### Full dump vs data-only dump
+
+A full dump includes schema and data:
+
+```bash
+docker compose exec -T db pg_dump -U appuser -d appdb > backups/appdb.sql
+```
+
+This can fail when restoring into a database where the schema already exists, because `db/init/01-create-visits.sql` creates the `visits` table at startup.
+
+For this project, the schema is managed by Git under `db/init`, so data-only backup is the cleaner fit:
+
+```bash
+docker compose exec -T db pg_dump -U appuser -d appdb --data-only > backups/appdb-data.sql
+```
+
 ## Logs
 
 ```bash
@@ -225,6 +291,8 @@ LIMIT 5;
 cp .env.example .env
 ```
 
+`backups/` 디렉터리는 Git에 포함하지 않습니다. 로컬 DB dump 파일에는 민감한 데이터가 들어갈 수 있습니다.
+
 ## Current Learning Progress
 
 Completed:
@@ -243,9 +311,10 @@ Completed:
 - DB schema initialization with SQL
 - Timestamp handling with `TIMESTAMPTZ` and UTC
 - PostgreSQL inspection with `docker compose exec` and `psql`
+- Database backup and restore with `pg_dump --data-only`
+- Git ignore policy for local database backup files
 
 ## Next Steps
 
-- Add volume backup and restore practice
 - Add Prometheus
 - Add Grafana
