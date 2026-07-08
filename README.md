@@ -54,6 +54,7 @@ Client
 - App and database healthchecks
 - `depends_on` with `service_healthy` conditions
 - PostgreSQL schema initialization using `db/init/01-create-visits.sql`
+- PostgreSQL inspection using `docker compose exec` and `psql`
 
 ## Run
 
@@ -103,6 +104,58 @@ Expected result:
 OK
 ```
 
+## Inspect PostgreSQL
+
+Open a shell inside the running PostgreSQL service container:
+
+```bash
+docker compose exec db sh
+```
+
+Connect to PostgreSQL from inside the container:
+
+```bash
+psql -U appuser -d appdb
+```
+
+Useful `psql` commands:
+
+```sql
+\dt
+\d visits
+SELECT COUNT(*) FROM visits;
+SELECT * FROM visits ORDER BY id DESC LIMIT 5;
+```
+
+You can also run SQL directly without entering an interactive shell:
+
+```bash
+docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
+docker compose exec db psql -U appuser -d appdb -c "SELECT id, created_at FROM visits ORDER BY id DESC LIMIT 5;"
+```
+
+To verify the request flow, compare the count before and after sending app requests:
+
+```bash
+docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
+
+curl http://localhost:8080/
+curl http://localhost:8080/
+curl http://localhost:8080/
+
+docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
+```
+
+Expected flow:
+
+```text
+curl request
+-> nginx
+-> app
+-> PostgreSQL INSERT
+-> visits count increases
+```
+
 ## Logs
 
 ```bash
@@ -144,6 +197,24 @@ This file is mounted into the PostgreSQL container:
 
 The SQL files in this directory run only when the PostgreSQL data directory is first initialized. If the existing `db-data` volume already exists, the init SQL will not run again unless the volume is removed.
 
+## Timezone Policy
+
+`created_at` uses `TIMESTAMPTZ DEFAULT now()`.
+
+The database timezone is kept as UTC. Store timestamps in UTC and convert them at query, API, or UI display time when a local timezone such as `Asia/Seoul` is needed.
+
+Example:
+
+```sql
+SELECT
+  id,
+  created_at,
+  created_at AT TIME ZONE 'Asia/Seoul' AS created_at_kst
+FROM visits
+ORDER BY id DESC
+LIMIT 5;
+```
+
 ## Notes
 
 `.env` 파일은 Git에 포함하지 않습니다.
@@ -170,11 +241,11 @@ Completed:
 - App and DB healthchecks
 - Startup ordering with `depends_on.condition: service_healthy`
 - DB schema initialization with SQL
+- Timestamp handling with `TIMESTAMPTZ` and UTC
+- PostgreSQL inspection with `docker compose exec` and `psql`
 
 ## Next Steps
 
-- Practice `docker compose exec`
-- Inspect PostgreSQL using `psql`
 - Add volume backup and restore practice
 - Add Prometheus
 - Add Grafana
