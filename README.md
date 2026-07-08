@@ -1,18 +1,10 @@
 # Container Platform Lab
 
-Docker Compose 기반으로 nginx, Node.js, PostgreSQL 등을 구성하며 컨테이너 운영 환경을 학습하는 실습 저장소입니다.
+Docker Compose 기반으로 `nginx`, `Node.js`, `PostgreSQL`을 구성하며 컨테이너 운영 환경을 학습하는 실습 저장소입니다.
 
-이 저장소는 단순 Compose 예제를 넘어, healthcheck, startup dependency, DB initialization SQL, volume, 그리고 추후 Prometheus/Grafana 모니터링까지 확장하는 것을 목표로 합니다.
+이 프로젝트는 단순히 컨테이너를 실행하는 것을 넘어, healthcheck, 서비스 시작 순서, DB 초기화, volume, 백업/복구, 모니터링까지 단계적으로 확장하는 것을 목표로 합니다.
 
-## Current Stack
-
-- Docker
-- Docker Compose
-- nginx
-- Node.js
-- PostgreSQL
-
-## Architecture
+## 아키텍처
 
 ```text
 Client
@@ -21,7 +13,62 @@ Client
 -> PostgreSQL
 ```
 
-## Project Structure
+## 기술 스택
+
+- Docker
+- Docker Compose
+- nginx
+- Node.js
+- PostgreSQL
+
+## 빠른 실행
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+상태 확인:
+
+```bash
+docker compose ps
+```
+
+요청 테스트:
+
+```bash
+curl http://localhost:8080/
+curl http://localhost:8080/health
+```
+
+중지:
+
+```bash
+docker compose down
+```
+
+DB volume까지 초기화:
+
+```bash
+docker compose down -v
+```
+
+## 주요 기능
+
+- nginx reverse proxy
+- Node.js app 컨테이너 빌드
+- PostgreSQL 컨테이너 구성
+- Docker Compose 서비스 네트워킹
+- PostgreSQL named volume
+- `.env` / `.env.example` 환경변수 분리
+- app / db healthcheck
+- `depends_on.condition: service_healthy` 기반 시작 순서 제어
+- PostgreSQL init SQL을 통한 schema 초기화
+- `TIMESTAMPTZ`와 UTC 기준 timestamp 처리
+- `docker compose exec`와 `psql`을 통한 DB 점검
+- `pg_dump --data-only` 기반 데이터 백업/복구
+
+## 프로젝트 구조
 
 ```text
 .
@@ -35,6 +82,12 @@ Client
 ├── db
 │   └── init
 │       └── 01-create-visits.sql
+├── docs
+│   ├── README.md
+│   ├── 01-architecture.md
+│   ├── 02-operations.md
+│   ├── 03-database-init-and-timezone.md
+│   └── 04-backup-and-restore.md
 ├── nginx
 │   └── default.conf
 ├── .env.example
@@ -42,279 +95,73 @@ Client
 └── README.md
 ```
 
-## Features
+## 문서
 
-- nginx reverse proxy
-- Node.js app container
-- PostgreSQL container
-- Docker Compose service networking
-- Named volume for PostgreSQL data
-- Environment variable separation with `.env`
-- App health endpoint: `/health`
-- App and database healthchecks
-- `depends_on` with `service_healthy` conditions
-- PostgreSQL schema initialization using `db/init/01-create-visits.sql`
-- PostgreSQL inspection using `docker compose exec` and `psql`
-- Data-only PostgreSQL backup and restore practice using `pg_dump`
+자세한 설명과 실습 기록은 `docs/`에 정리합니다.
 
-## Run
+- [문서 목차](./docs/README.md)
+- [프로젝트 구조와 아키텍처](./docs/01-architecture.md)
+- [운영 명령과 점검 방법](./docs/02-operations.md)
+- [데이터베이스 초기화와 시간대 정책](./docs/03-database-init-and-timezone.md)
+- [PostgreSQL 백업과 복구](./docs/04-backup-and-restore.md)
+
+## 운영 명령 요약
+
+로그 확인:
 
 ```bash
-cp .env.example .env
-docker compose up -d --build
+docker compose logs -f
 ```
 
-## Check Status
+DB 접속:
 
 ```bash
-docker compose ps
+docker compose exec db psql -U appuser -d appdb
 ```
 
-Expected status:
-
-```text
-compose-db      Up ... (healthy)
-compose-app     Up ... (healthy)
-compose-nginx   Up ...
-```
-
-## Test
-
-```bash
-curl http://localhost:8080/
-```
-
-Expected result:
-
-```text
-Hello from Node app container
-Visit count: 1
-```
-
-The visit count increases on each request.
-
-Health endpoint:
-
-```bash
-curl http://localhost:8080/health
-```
-
-Expected result:
-
-```text
-OK
-```
-
-## Inspect PostgreSQL
-
-Open a shell inside the running PostgreSQL service container:
-
-```bash
-docker compose exec db sh
-```
-
-Connect to PostgreSQL from inside the container:
-
-```bash
-psql -U appuser -d appdb
-```
-
-Useful `psql` commands:
-
-```sql
-\dt
-\d visits
-SELECT COUNT(*) FROM visits;
-SELECT * FROM visits ORDER BY id DESC LIMIT 5;
-```
-
-You can also run SQL directly without entering an interactive shell:
+DB row 개수 확인:
 
 ```bash
 docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
-docker compose exec db psql -U appuser -d appdb -c "SELECT id, created_at FROM visits ORDER BY id DESC LIMIT 5;"
 ```
 
-To verify the request flow, compare the count before and after sending app requests:
-
-```bash
-docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
-
-curl http://localhost:8080/
-curl http://localhost:8080/
-curl http://localhost:8080/
-
-docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
-```
-
-Expected flow:
-
-```text
-curl request
--> nginx
--> app
--> PostgreSQL INSERT
--> visits count increases
-```
-
-## Backup and Restore
-
-Local backup files are stored under `backups/`, which is ignored by Git because database dumps can contain sensitive data.
-
-Create the local backup directory:
+데이터 백업:
 
 ```bash
 mkdir -p backups
-```
-
-Check the current row count:
-
-```bash
-docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
-```
-
-Create a data-only backup:
-
-```bash
 docker compose exec -T db pg_dump -U appuser -d appdb --data-only > backups/appdb-data.sql
 ```
 
-`-T` disables pseudo-TTY allocation. This is useful when redirecting command output to a file.
-
-Reset the database volume:
-
-```bash
-docker compose down -v
-docker compose up -d --build
-```
-
-After reset, the init SQL recreates the table, but the data is empty:
-
-```bash
-docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
-```
-
-Restore data from the backup:
+데이터 복구:
 
 ```bash
 docker compose exec -T db psql -U appuser -d appdb < backups/appdb-data.sql
 ```
 
-Verify that the count is restored:
+## Git 제외 대상
 
-```bash
-docker compose exec db psql -U appuser -d appdb -c "SELECT COUNT(*) FROM visits;"
-```
-
-### Full dump vs data-only dump
-
-A full dump includes schema and data:
-
-```bash
-docker compose exec -T db pg_dump -U appuser -d appdb > backups/appdb.sql
-```
-
-This can fail when restoring into a database where the schema already exists, because `db/init/01-create-visits.sql` creates the `visits` table at startup.
-
-For this project, the schema is managed by Git under `db/init`, so data-only backup is the cleaner fit:
-
-```bash
-docker compose exec -T db pg_dump -U appuser -d appdb --data-only > backups/appdb-data.sql
-```
-
-## Logs
-
-```bash
-docker compose logs -f
-docker compose logs app
-docker compose logs nginx
-docker compose logs db
-```
-
-## Stop
-
-```bash
-docker compose down
-```
-
-This removes containers and the Compose network, but keeps the PostgreSQL volume.
-
-## Reset DB
-
-```bash
-docker compose down -v
-```
-
-This removes the PostgreSQL named volume as well. The next `docker compose up -d --build` run will initialize the database again using SQL files under `db/init`.
-
-## Database Initialization
-
-PostgreSQL initialization SQL is stored in:
+`.env`와 `backups/`는 Git에 포함하지 않습니다.
 
 ```text
-db/init/01-create-visits.sql
+.env
+backups/
 ```
 
-This file is mounted into the PostgreSQL container:
+`.env`에는 로컬 환경변수가 들어가고, `backups/`에는 DB dump 파일이 들어갈 수 있기 때문입니다.
 
-```text
-/docker-entrypoint-initdb.d
-```
+## 진행 상황
 
-The SQL files in this directory run only when the PostgreSQL data directory is first initialized. If the existing `db-data` volume already exists, the init SQL will not run again unless the volume is removed.
+완료:
 
-## Timezone Policy
+- Compose 기반 nginx / app / db 구성
+- healthcheck와 시작 순서 제어
+- PostgreSQL init SQL 분리
+- UTC 기준 timestamp 처리
+- psql 기반 DB 점검
+- data-only 백업/복구 실습
+- README 슬림화 및 docs 분리
 
-`created_at` uses `TIMESTAMPTZ DEFAULT now()`.
+다음 단계:
 
-The database timezone is kept as UTC. Store timestamps in UTC and convert them at query, API, or UI display time when a local timezone such as `Asia/Seoul` is needed.
-
-Example:
-
-```sql
-SELECT
-  id,
-  created_at,
-  created_at AT TIME ZONE 'Asia/Seoul' AS created_at_kst
-FROM visits
-ORDER BY id DESC
-LIMIT 5;
-```
-
-## Notes
-
-`.env` 파일은 Git에 포함하지 않습니다.
-
-실제 환경변수는 `.env.example`을 복사해서 사용합니다.
-
-```bash
-cp .env.example .env
-```
-
-`backups/` 디렉터리는 Git에 포함하지 않습니다. 로컬 DB dump 파일에는 민감한 데이터가 들어갈 수 있습니다.
-
-## Current Learning Progress
-
-Completed:
-
-- Basic Docker container execution
-- Port mapping
-- Docker bridge network basics
-- Docker Compose service networking
-- nginx reverse proxy to app service
-- Node.js app container build
-- PostgreSQL service integration
-- Named volume for DB persistence
-- `.env` / `.env.example` separation
-- App and DB healthchecks
-- Startup ordering with `depends_on.condition: service_healthy`
-- DB schema initialization with SQL
-- Timestamp handling with `TIMESTAMPTZ` and UTC
-- PostgreSQL inspection with `docker compose exec` and `psql`
-- Database backup and restore with `pg_dump --data-only`
-- Git ignore policy for local database backup files
-
-## Next Steps
-
-- Add Prometheus
-- Add Grafana
+- Prometheus 추가
+- Grafana 추가
