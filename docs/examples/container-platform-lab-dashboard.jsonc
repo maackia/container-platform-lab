@@ -1,0 +1,404 @@
+{
+  // Grafana 알림/주석 기능 설정.
+  // 현재는 대시보드 위에 표시할 annotation을 따로 사용하지 않는다.
+  "annotations": {
+    "list": []
+  },
+
+  // false이면 Grafana 웹 UI에서 대시보드를 수정할 수 없다.
+  // Git에 저장된 JSON을 기준으로 관리하기 위한 설정이다.
+  "editable": false,
+
+  // 회계연도 시작 월. 0은 1월을 의미한다.
+  "fiscalYearStartMonth": 0,
+
+  // 여러 패널의 그래프 위에 마우스를 올렸을 때
+  // 같은 시각의 툴팁을 함께 표시한다.
+  "graphTooltip": 1,
+
+  // Grafana 내부 숫자 ID.
+  // provisioning할 때는 null로 두면 Grafana가 자동 처리한다.
+  "id": null,
+
+  // 대시보드 상단에 표시할 외부 링크 목록.
+  "links": [],
+
+  // 실제 대시보드 패널들의 목록.
+  "panels": [
+    {
+      // 이 패널이 사용할 데이터소스.
+      // provisioning에서 등록한 Prometheus의 UID와 일치해야 한다.
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+
+      // 패널에 표시되는 값의 색상, 변환 규칙 등을 정의한다.
+      "fieldConfig": {
+        "defaults": {
+          // threshold 값에 따라 색상을 바꾼다.
+          "color": {
+            "mode": "thresholds"
+          },
+
+          // 숫자 값을 사람이 읽기 쉬운 텍스트로 변환한다.
+          // 0은 DOWN, 1은 UP으로 표시한다.
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+
+          // 값이 1 이상이면 녹색, 그보다 작으면 빨간색으로 표시한다.
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+
+        // 특정 필드만 별도로 꾸미고 싶을 때 사용하는 설정.
+        "overrides": []
+      },
+
+      // Grafana의 24칸 그리드에서 패널 위치와 크기를 결정한다.
+      // w: 너비, h: 높이, x/y: 시작 위치.
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+
+      // 대시보드 내부에서 패널을 구분하는 고유 숫자 ID.
+      "id": 1,
+
+      // stat 패널의 표시 방식.
+      "options": {
+        // 상태에 따라 패널 배경 전체의 색상을 바꾼다.
+        "colorMode": "background",
+
+        // 작은 추세 그래프는 표시하지 않는다.
+        "graphMode": "none",
+
+        // 값을 가운데 정렬한다.
+        "justifyMode": "center",
+
+        // 패널 크기에 따라 자동으로 방향을 정한다.
+        "orientation": "auto",
+
+        // 여러 시계열 값 중 최신 값을 하나로 줄여 표시한다.
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+
+        "textMode": "auto"
+      },
+
+      // Prometheus에 보낼 PromQL 쿼리 목록.
+      "targets": [
+        {
+          // node_app job의 최신 scrape 상태.
+          // 정상 수집 중이면 1, 실패하면 0이다.
+          "expr": "up{job=\"node_app\"}",
+
+          // Grafana 범례에 표시되는 이름.
+          "legendFormat": "Node app",
+
+          // 한 패널 안의 여러 쿼리를 구분하는 ID.
+          "refId": "A"
+        }
+      ],
+
+      "title": "Application Status",
+
+      // 숫자나 상태를 크게 보여주는 stat 패널.
+      "type": "stat"
+    },
+
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+
+      "fieldConfig": {
+        "defaults": {
+          // 초당 요청 수 단위로 표시한다.
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 6,
+        "y": 0
+      },
+
+      "id": 2,
+
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+
+      "targets": [
+        {
+          // 최근 1분 동안의 HTTP 요청 증가 속도를 계산한다.
+          // route별로 묶기 때문에 /, /health, /metrics가 각각 표시된다.
+          "expr": "sum by (route) (rate(app_http_requests_total[1m]))",
+
+          // Prometheus 라벨 route의 값을 범례 이름으로 사용한다.
+          "legendFormat": "{{route}}",
+
+          "refId": "A"
+        }
+      ],
+
+      "title": "HTTP Request Rate",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+
+      "id": 3,
+
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+
+      "targets": [
+        {
+          // HTTP 상태 코드별 초당 응답 수를 계산한다.
+          // 200과 500 응답을 별도 시계열로 확인할 수 있다.
+          "expr": "sum by (status_code) (rate(app_http_requests_total[1m]))",
+
+          "legendFormat": "HTTP {{status_code}}",
+
+          "refId": "A"
+        }
+      ],
+
+      "title": "HTTP Responses by Status",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+
+      "fieldConfig": {
+        "defaults": {
+          // 일반 숫자 단위.
+          "unit": "short"
+        },
+        "overrides": []
+      },
+
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+
+      "id": 4,
+
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+
+      "targets": [
+        {
+          // 최근 5분 동안 발생한 DB 쿼리 횟수를 계산한다.
+          // operation과 status 라벨별로 구분한다.
+          "expr": "sum by (operation, status) (increase(app_db_queries_total[5m]))",
+
+          // 예: insert_visit / success
+          "legendFormat": "{{operation}} / {{status}}",
+
+          "refId": "A"
+        }
+      ],
+
+      "title": "Database Queries in Last 5 Minutes",
+      "type": "timeseries"
+    },
+
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+
+      "fieldConfig": {
+        "defaults": {
+          // 바이트 값을 KB, MB 등의 단위로 자동 변환한다.
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+
+      "id": 5,
+
+      "options": {
+        "legend": {
+          // 범례에 가장 최근 값을 함께 표시한다.
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+
+      "targets": [
+        {
+          // Node.js 프로세스가 실제 메모리에 점유한 전체 크기.
+          "expr": "process_resident_memory_bytes{job=\"node_app\"}",
+
+          "legendFormat": "Resident memory",
+
+          "refId": "A"
+        },
+        {
+          // V8 JavaScript heap 중 실제 사용 중인 메모리.
+          "expr": "nodejs_heap_size_used_bytes{job=\"node_app\"}",
+
+          "legendFormat": "Node.js heap used",
+
+          "refId": "B"
+        }
+      ],
+
+      "title": "Application Memory Usage",
+      "type": "timeseries"
+    }
+  ],
+
+  // 대시보드를 5초마다 자동 새로고침한다.
+  "refresh": "5s",
+
+  // Grafana 대시보드 JSON 스키마 버전.
+  "schemaVersion": 41,
+
+  // Grafana에서 검색과 분류에 사용할 태그.
+  "tags": [
+    "docker",
+    "prometheus",
+    "grafana",
+    "nodejs"
+  ],
+
+  // 사용자가 선택할 수 있는 대시보드 변수 목록.
+  // 현재는 변수를 사용하지 않는다.
+  "templating": {
+    "list": []
+  },
+
+  // 처음 대시보드를 열었을 때 최근 15분 범위를 보여준다.
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+
+  "timepicker": {},
+
+  // 브라우저의 로컬 시간대를 사용한다.
+  "timezone": "browser",
+
+  // Grafana 화면에 표시되는 대시보드 이름.
+  "title": "Container Platform Lab",
+
+  // URL에도 사용되는 대시보드 고유 문자열 ID.
+  "uid": "container-platform-lab",
+
+  // 대시보드 버전.
+  "version": 1
+}
