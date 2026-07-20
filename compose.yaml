@@ -50,6 +50,21 @@ services:
       - app-network
     restart: unless-stopped
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
 volumes:
   db-data:
 
