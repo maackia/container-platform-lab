@@ -10,6 +10,11 @@
 2. [운영 명령과 점검 방법](./02-operations.md)
 3. [데이터베이스 초기화와 시간대 정책](./03-database-init-and-timezone.md)
 4. [PostgreSQL 백업과 복구](./04-backup-and-restore.md)
+5. [Prometheus와 Grafana 모니터링](./05-monitoring.md)
+
+## 참고 예제
+
+- [주석이 포함된 Grafana 대시보드 JSONC](./examples/container-platform-lab-dashboard.jsonc)
 
 ## 정리 원칙
 
