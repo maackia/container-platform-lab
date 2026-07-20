@@ -1,16 +1,16 @@
 const http = require("http");
 const { Client } = require("pg");
-const client = require("prom-client");
+const promClient = require("prom-client");
 
-client.collectDefaultMetrics();
+promClient.collectDefaultMetrics();
 
-const httpRequestsTotal = new client.Counter({
+const httpRequestsTotal = new promClient.Counter({
   name: "app_http_requests_total",
   help: "Total number of HTTP requests",
   labelNames: ["method", "route", "status_code"],
 });
 
-const dbQueriesTotal = new client.Counter({
+const dbQueriesTotal = new promClient.Counter({
   name: "app_db_queries_total",
   help: "Total number of database queries",
   labelNames: ["operation", "status"],
@@ -25,20 +25,37 @@ const dbConfig = {
 };
 
 async function queryDb() {
-  const client = new Client(dbConfig);
-  await client.connect();
+  const dbClient = new Client(dbConfig);
+  await dbClient.connect();
 
-  // 기존 테이블 생성 처리를 db/init/01-create-visits.sql 에서 처리
+  try {
+    await dbClient.query("INSERT INTO visits DEFAULT VALUES");
 
-  await client.query("INSERT INTO visits DEFAULT VALUES");
-  dbQueriesTotal.inc({ operation: "insert_visit", status: "success" });
+    dbQueriesTotal.inc({
+      operation: "insert_visit",
+      status: "success",
+    });
 
-  const result = await client.query("SELECT COUNT(*) AS count FROM visits");
-  dbQueriesTotal.inc({ operation: "count_visits", status: "success" });
+    const result = await dbClient.query(
+      "SELECT COUNT(*) AS count FROM visits",
+    );
 
-  await client.end();
+    dbQueriesTotal.inc({
+      operation: "count_visits",
+      status: "success",
+    });
 
-  return result.rows[0].count;
+    return result.rows[0].count;
+  } catch (err) {
+    dbQueriesTotal.inc({
+      operation: "query",
+      status: "error",
+    });
+
+    throw err;
+  } finally {
+    await dbClient.end();
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -49,7 +66,9 @@ const server = http.createServer(async (req, res) => {
       status_code: "200",
     });
 
-    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.writeHead(200, {
+      "Content-Type": "text/plain",
+    });
     res.end("OK\n");
     return;
   }
@@ -61,8 +80,10 @@ const server = http.createServer(async (req, res) => {
       status_code: "200",
     });
 
-    res.writeHead(200, { "Content-Type": client.register.contentType });
-    res.end(await client.register.metrics());
+    res.writeHead(200, {
+      "Content-Type": promClient.register.contentType,
+    });
+    res.end(await promClient.register.metrics());
     return;
   }
 
@@ -75,12 +96,12 @@ const server = http.createServer(async (req, res) => {
       status_code: "200",
     });
 
-    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.writeHead(200, {
+      "Content-Type": "text/plain",
+    });
     res.end(`Hello from Node app container\nVisit count: ${count}\n`);
   } catch (err) {
     console.error(err);
-
-    dbQueriesTotal.inc({ operation: "request", status: "error" });
 
     httpRequestsTotal.inc({
       method: req.method,
@@ -88,7 +109,9 @@ const server = http.createServer(async (req, res) => {
       status_code: "500",
     });
 
-    res.writeHead(500, { "Content-Type": "text/plain" });
+    res.writeHead(500, {
+      "Content-Type": "text/plain",
+    });
     res.end(`DB error: ${err.message}\n`);
   }
 });
