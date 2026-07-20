@@ -62,7 +62,7 @@ curl http://localhost:8080/metrics
 make down
 ```
 
-DB volume까지 초기화:
+모든 Compose volume까지 초기화:
 
 ```bash
 make reset
