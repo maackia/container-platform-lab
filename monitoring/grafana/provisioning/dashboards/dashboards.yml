@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: "container-platform-lab"
+    orgId: 1
+    folder: "Container Platform Lab"  #Grafana 화면에서 대시보드가 들어갈 폴더 이름
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10 #JSON 변경 여부를 확인하는 주기
+    allowUiUpdates: false #웹에서 수정하지 않고 Git의 JSON을 기준으로 관리
+    options:
+      path: /var/lib/grafana/dashboards
