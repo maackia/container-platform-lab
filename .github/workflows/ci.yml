@@ -43,3 +43,64 @@ jobs:
 
       - name: Build Docker images
         run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for application health
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8080/health; then
+              echo "Application is healthy"
+              exit 0
+            fi
+
+            echo "Waiting for application... attempt ${i}/30"
+            sleep 2
+          done
+
+          echo "Application health check failed"
+          docker compose ps
+          docker compose logs
+          exit 1
+
+      - name: Check application response
+        run: curl -fsS http://localhost:8080/
+
+      - name: Check Prometheus readiness
+        run: curl -fsS http://localhost:9090/-/ready
+
+      - name: Wait for Prometheus target
+        run: |
+          for i in {1..20}; do
+            response="$(curl -fsS \
+              'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22node_app%22%7D')"
+
+            echo "$response"
+
+            if echo "$response" | grep -Eq '"value":\[[^]]*,"1"\]'; then
+              echo "Prometheus target is up"
+              exit 0
+            fi
+
+            echo "Waiting for Prometheus target... attempt ${i}/20"
+            sleep 3
+          done
+
+          echo "Prometheus target did not become healthy"
+          docker compose ps
+          docker compose logs prometheus app
+          exit 1
+
+      - name: Check Grafana health
+        run: curl -fsS http://localhost:3001/api/health
+
+      - name: Show service status on failure
+        if: failure()
+        run: |
+          docker compose ps
+          docker compose logs
+
+      - name: Stop services
+        if: always()
+        run: docker compose down -v
