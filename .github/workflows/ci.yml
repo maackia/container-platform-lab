@@ -48,7 +48,7 @@ jobs:
         run: docker compose up -d
 
       - name: Wait for application health
-        run:
+        run: |
           for i in {1..30}; do
             if curl -fsS http://localhost:8080/health; then
               echo "Application is healthy"
