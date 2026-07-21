@@ -70,11 +70,27 @@ jobs:
       - name: Check Prometheus readiness
         run: curl -fsS http://localhost:9090/-/ready
 
-      - name: Check Prometheus target
+      - name: Wait for Prometheus target
         run: |
-                response="$(curl -fsS http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22node_app%22%7D)"
-                echo "$response"
-                echo "$response" | grep -q '"value":\[.*,"1"\]'
+          for i in {1..20}; do
+            response="$(curl -fsS \
+              'http://localhost:9090/api/v1/query?query=up%7Bjob%3D%22node_app%22%7D')"
+
+            echo "$response"
+
+            if echo "$response" | grep -Eq '"value":\[[^]]*,"1"\]'; then
+              echo "Prometheus target is up"
+              exit 0
+            fi
+
+            echo "Waiting for Prometheus target... attempt ${i}/20"
+            sleep 3
+          done
+
+          echo "Prometheus target did not become healthy"
+          docker compose ps
+          docker compose logs prometheus app
+          exit 1
 
       - name: Check Grafana health
         run: curl -fsS http://localhost:3001/api/health
