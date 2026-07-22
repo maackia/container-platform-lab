@@ -1,0 +1,4 @@
+services:
+  app:
+    image: ghcr.io/maackia/container-platform-lab-app:latest
+    build: null
