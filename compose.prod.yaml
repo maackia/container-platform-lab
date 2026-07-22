@@ -1,4 +1,4 @@
 services:
   app:
-    image: ghcr.io/maackia/container-platform-lab-app:latest
+    image: ghcr.io/maackia/container-platform-lab-app:${APP_IMAGE_TAG:-latest}
     build: null
