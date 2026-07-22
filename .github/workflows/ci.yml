@@ -92,8 +92,26 @@ jobs:
           docker compose logs prometheus app
           exit 1
 
-      - name: Check Grafana health
-        run: curl -fsS http://localhost:3001/api/health
+      - name: Wait for Grafana health
+        run: |
+          for i in {1..30}; do
+            response="$(curl -fsS http://localhost:3001/api/health 2>/dev/null || true)"
+
+            echo "$response"
+
+            if echo "$response" | grep -q '"database"[[:space:]]*:[[:space:]]*"ok"'; then
+              echo "Grafana is healthy"
+              exit 0
+            fi
+
+            echo "Waiting for Grafana... attempt ${i}/30"
+            sleep 3
+          done
+
+          echo "Grafana did not become healthy"
+          docker compose ps
+          docker compose logs grafana
+          exit 1
 
       - name: Show service status on failure
         if: failure()
