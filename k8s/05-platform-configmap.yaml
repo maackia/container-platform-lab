@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: platform-config
+  namespace: platform-lab
+
+data:
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_USER: appuser
+  DB_NAME: appdb
+
+  POSTGRES_USER: appuser
+  POSTGRES_DB: appdb
