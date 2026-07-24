@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: platform-lab
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: nginx
+
+  template:
+    metadata:
+      labels:
+        app: nginx
+
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+
+          ports:
+           - name: http
+             containerPort: 80
+
+          readinessProbe: #요청을 받을 준비가 됐는지 검사
+            httpGet:
+             path: /
+             port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+
+          livenessProbe:  #프로세스가 살아 있는지 검사
+           httpGet:
+             path: /
+             port: http
+           initialDelaySeconds: 10
+           periodSeconds: 10
+
+          resources:
+           requests:
+             cpu: 50m
+             memory: 32Mi
+           limits:
+             cpu: 200m
+             memory: 128Mi

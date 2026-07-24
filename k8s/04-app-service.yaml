@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: app
+  namespace: platform-lab
+
+spec:
+  type: ClusterIP # Kubernetes 클러스터 내부에서만 접근 가능 
+
+  selector:
+    app: platform-app
+
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

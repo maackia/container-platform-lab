@@ -243,7 +243,50 @@ git branch -d feature/example
 git fetch --prune
 ```
 
-## 11. 완료 기준
+## 11. Kubernetes 매니페스트 검증
+
+K3s 매니페스트가 추가된 뒤 `ci.yml`에 별도의 `validate-kubernetes` Job을 구성했습니다.
+
+```text
+Pull Request / main push
+├── validate-kubernetes
+│   └── Kubeconform
+└── test
+    └── Compose 통합 테스트
+```
+
+두 Job은 서로 독립적으로 실행되므로 Kubernetes 스키마 오류와 Compose 통합 테스트 실패를 구분할 수 있습니다.
+
+Kubeconform은 검증한 `v0.8.0` 버전으로 고정했습니다.
+
+```bash
+docker run --rm \
+  -v "$PWD:/work" \
+  ghcr.io/yannh/kubeconform:v0.8.0 \
+  -strict -summary /work/k8s
+```
+
+옵션의 의미:
+
+```text
+-strict
+→ 스키마에 정의되지 않은 필드를 오류로 처리
+
+-summary
+→ 유효·오류·건너뜀 리소스 수를 요약
+```
+
+`latest` 태그는 실행 시점에 따라 도구 버전이 달라질 수 있다. CI에서는 확인한 버전을 명시해 재현성을 유지하고, 업그레이드할 때 릴리스와 기존 매니페스트 호환성을 다시 확인한다.
+
+로컬에서는 실제 K3s API를 사용하는 서버 측 dry-run을 함께 실행한다.
+
+```bash
+kubectl apply --dry-run=server -f k8s/
+```
+
+Kubeconform은 빠른 정적 스키마 검사에 적합하고, 서버 측 dry-run은 현재 클러스터의 API와 admission 설정을 반영한다. 두 검사를 상호 보완적으로 사용한다.
+
+## 12. 완료 기준
 
 ```text
 Node.js 24 환경 통일
@@ -254,4 +297,5 @@ GHCR 이미지 게시
 amd64 / arm64 manifest 확인
 latest / SHA / SemVer 태그 생성
 v0.1.0 이미지 pull 검증
+Kubeconform v0.8.0 Kubernetes 매니페스트 검증
 ```
