@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
-    step:
+    steps:
       - name: Checkout repository
-        users: actions/checkout@v6
+        uses: actions/checkout@v6
 
       - name: Validate Kubernetes manifests
         run: |
-          docker rum --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary /work/k8s
+          docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary /work/k8s
   test:
     name: Validate and test container stack
     runs-on: ubuntu-latest
