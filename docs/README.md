@@ -14,6 +14,7 @@
 6. [GitHub Actions CI와 GHCR 이미지 게시](./06-ci-cd.md)
 7. [배포용 Compose와 버전 롤백](./07-production-compose.md)
 8. [K3s 기반 Kubernetes 배포](./08-k3s.md)
+9. [Kubernetes 모니터링 스택](./09-kubernetes-monitoring.md)
 
 ## 참고 예제
 
