@@ -16,19 +16,80 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  HELM_VERSION: "v4.2.3"
+  KUBECONFORM_VERSION: "0.8.0"
+  KUBE_PROMETHEUS_STACK_VERSION: "87.19.0"
+
 jobs:
   validate-kubernetes:
-    name: Validate Kubernetes manifests
+    name: Validate Kubernetes monitoring configuration
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Validate Grafana dashboard resource
+        run: |
+          jq -e '
+            .apiVersion == "dashboard.grafana.app/v2" and
+            .kind == "Dashboard" and
+            (.metadata.name | length > 0) and
+            .spec.title == "Platform App Overview"
+          ' grafana/dashboards/platform-app-overview.json
+
       - name: Validate Kubernetes manifests
         run: |
-          docker run --rm -v "$PWD:/work" ghcr.io/yannh/kubeconform:v0.8.0 -strict -summary /work/k8s
+          docker run --rm \
+            -v "$PWD:/work:ro" \
+            "ghcr.io/yannh/kubeconform:v${KUBECONFORM_VERSION}" \
+            -strict \
+            -summary \
+            -ignore-missing-schemas \
+            /work/k8s
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Pull and render monitoring chart
+        run: |
+          chart_dir="${RUNNER_TEMP}/helm-chart"
+          chart_archive="${chart_dir}/kube-prometheus-stack-${KUBE_PROMETHEUS_STACK_VERSION}.tgz"
+          rendered_file="${RUNNER_TEMP}/kube-prometheus-stack-rendered.yaml"
+
+          mkdir -p "$chart_dir"
+
+          helm pull \
+            oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+            --version "$KUBE_PROMETHEUS_STACK_VERSION" \
+            --destination "$chart_dir"
+
+          test -f "$chart_archive"
+
+          helm lint \
+            "$chart_archive" \
+            -f helm/kube-prometheus-stack-values.yaml
+
+          helm template monitoring \
+            "$chart_archive" \
+            --namespace monitoring \
+            -f helm/kube-prometheus-stack-values.yaml \
+            > "$rendered_file"
+
+      - name: Validate rendered monitoring manifests
+        run: |
+          docker run --rm \
+            -v "$RUNNER_TEMP:/work:ro" \
+            "ghcr.io/yannh/kubeconform:v${KUBECONFORM_VERSION}" \
+            -strict \
+            -summary \
+            -ignore-missing-schemas \
+            /work/kube-prometheus-stack-rendered.yaml
+
   test:
     name: Validate and test container stack
     runs-on: ubuntu-latest

@@ -4,6 +4,8 @@ kind: Service
 metadata:
   name: app
   namespace: platform-lab
+  labels:
+    app: platform-app
 
 spec:
   type: ClusterIP # Kubernetes 클러스터 내부에서만 접근 가능 
