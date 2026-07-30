@@ -1,6 +1,6 @@
 # Container Platform Lab
 
-Docker Compose로 구성한 nginx, Node.js, PostgreSQL, Prometheus, Grafana 스택을 CI/CD와 버전 기반 배포까지 확장하고, 동일한 애플리케이션을 K3s 환경에 배포하며 Kubernetes의 핵심 리소스를 학습하는 실습 저장소입니다.
+Docker Compose로 구성한 nginx, Node.js, PostgreSQL, Prometheus, Grafana 스택을 CI/CD와 버전 기반 배포까지 확장하고, 동일한 애플리케이션을 K3s에 배포해 Kubernetes 리소스와 클러스터 모니터링을 학습하는 실습 저장소입니다.
 
 ## 아키텍처
 
@@ -15,7 +15,7 @@ Node.js /metrics
 → Prometheus
 → Grafana
 
-K3s
+K3s application
 Client
 → Traefik Ingress
 → app Service
@@ -23,9 +23,16 @@ Client
 → db Service
 → PostgreSQL StatefulSet / PVC
 
+K3s monitoring
+Node.js Pod /metrics
+→ ServiceMonitor
+→ Prometheus Operator
+→ Prometheus
+→ Grafana Dashboard
+
 GitHub Actions
 → Compose integration test
-→ Kubernetes manifest validation
+→ Kubernetes and Helm validation
 → GHCR multi-architecture image
 ```
 
@@ -33,6 +40,8 @@ GitHub Actions
 
 - Docker / Docker Compose
 - K3s / Kubernetes
+- Helm / kube-prometheus-stack
+- Prometheus Operator / ServiceMonitor
 - Traefik Ingress
 - nginx
 - Node.js 24
@@ -119,6 +128,41 @@ platform.local
 
 Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kubernetes 배포](./docs/08-k3s.md)에 정리합니다.
 
+## K3s 모니터링
+
+Helm으로 `kube-prometheus-stack`을 설치한 뒤 애플리케이션 ServiceMonitor와 Grafana 대시보드를 적용합니다.
+
+```bash
+helm upgrade --install monitoring \
+  oci://ghcr.io/prometheus-community/charts/kube-prometheus-stack \
+  --version 87.19.0 \
+  --namespace monitoring \
+  --create-namespace \
+  -f helm/kube-prometheus-stack-values.yaml \
+  --wait \
+  --timeout 15m
+
+kubectl apply -f k8s/
+kubectl get servicemonitor app -n platform-lab
+kubectl get pods -n monitoring
+```
+
+로컬 접속:
+
+```bash
+kubectl port-forward \
+  -n monitoring \
+  service/monitoring-kube-prometheus-prometheus \
+  9090:9090
+
+kubectl port-forward \
+  -n monitoring \
+  service/monitoring-grafana \
+  3001:80
+```
+
+상세 설정과 검증 방법은 [Kubernetes 모니터링 스택](./docs/09-kubernetes-monitoring.md)에 정리합니다.
+
 ## 주요 기능
 
 - nginx reverse proxy와 Node.js / PostgreSQL 3-tier 구성
@@ -133,7 +177,10 @@ Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kuberne
 - K3s Namespace, Deployment, Service, ConfigMap, Secret 구성
 - PostgreSQL StatefulSet와 local-path PVC
 - Traefik Ingress와 readiness/liveness probe
-- Kubeconform 기반 Kubernetes 매니페스트 CI 검증
+- Helm 기반 kube-prometheus-stack 구성
+- ServiceMonitor 기반 애플리케이션 target 자동 발견
+- Grafana ConfigMap 기반 대시보드 provisioning
+- Kubeconform 기반 Kubernetes·Helm 렌더링 결과 CI 검증
 
 ## 프로젝트 구조
 
@@ -153,11 +200,17 @@ Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kuberne
 │   ├── 05-monitoring.md
 │   ├── 06-ci-cd.md
 │   ├── 07-production-compose.md
-│   └── 08-k3s.md
+│   ├── 08-k3s.md
+│   └── 09-kubernetes-monitoring.md
+├── grafana/dashboards
+│   └── platform-app-overview.json
+├── helm
+│   └── kube-prometheus-stack-values.yaml
 ├── k8s
 │   ├── 00-namespace.yaml
 │   ├── ...
-│   └── 09-app-ingress.yaml
+│   ├── 10-app-servicemonitor.yaml
+│   └── 11-platform-app-dashboard-configmap.yaml
 ├── monitoring
 ├── nginx
 ├── compose.yaml
@@ -178,6 +231,7 @@ Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kuberne
 - [GitHub Actions CI와 GHCR 이미지 게시](./docs/06-ci-cd.md)
 - [배포용 Compose와 버전 롤백](./docs/07-production-compose.md)
 - [K3s 기반 Kubernetes 배포](./docs/08-k3s.md)
+- [Kubernetes 모니터링 스택](./docs/09-kubernetes-monitoring.md)
 
 ## 현재 완료 범위
 
@@ -190,7 +244,10 @@ Docker Compose 스택
 → 버전 고정 배포와 SHA 롤백
 → K3s 애플리케이션·데이터베이스 배포
 → Traefik Ingress와 PVC
-→ Kubernetes 매니페스트 CI 검증
+→ kube-prometheus-stack
+→ ServiceMonitor 기반 앱 메트릭 수집
+→ Grafana 대시보드 자동 provisioning
+→ Kubernetes·Helm 매니페스트 CI 검증
 ```
 
 .env, backups/, 실제 Secret 값은 Git에 포함하지 않습니다.
