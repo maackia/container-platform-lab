@@ -261,9 +261,12 @@ Kubeconform은 검증한 `v0.8.0` 버전으로 고정했습니다.
 
 ```bash
 docker run --rm \
-  -v "$PWD:/work" \
+  -v "$PWD:/work:ro" \
+  -w /work \
   ghcr.io/yannh/kubeconform:v0.8.0 \
-  -strict -summary /work/k8s
+  -strict -summary -ignore-missing-schemas \
+  k8s/*.yaml \
+  k8s/monitoring/*.yaml
 ```
 
 옵션의 의미:
@@ -274,6 +277,9 @@ docker run --rm \
 
 -summary
 → 유효·오류·건너뜀 리소스 수를 요약
+
+-ignore-missing-schemas
+→ 기본 스키마 저장소에 없는 ServiceMonitor 같은 CRD 리소스를 건너뜀
 ```
 
 `latest` 태그는 실행 시점에 따라 도구 버전이 달라질 수 있다. CI에서는 확인한 버전을 명시해 재현성을 유지하고, 업그레이드할 때 릴리스와 기존 매니페스트 호환성을 다시 확인한다.
@@ -282,7 +288,10 @@ docker run --rm \
 
 ```bash
 kubectl apply --dry-run=server -f k8s/
+kubectl apply --dry-run=server -f k8s/monitoring/
 ```
+
+모니터링 디렉터리의 서버 측 검증은 `kube-prometheus-stack`을 설치해 CRD와 `monitoring` namespace를 준비한 뒤 실행한다.
 
 Kubeconform은 빠른 정적 스키마 검사에 적합하고, 서버 측 dry-run은 현재 클러스터의 API와 admission 설정을 반영한다. 두 검사를 상호 보완적으로 사용한다.
 

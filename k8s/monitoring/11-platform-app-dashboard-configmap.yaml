@@ -113,11 +113,15 @@ data:
                         "steps": [
                           {
                             "value": 0,
-                            "color": "green"
+                            "color": "red"
                           },
                           {
-                            "value": 80,
-                            "color": "red"
+                            "value": 1,
+                            "color": "yellow"
+                          },
+                          {
+                            "value": 2,
+                            "color": "green"
                           }
                         ]
                       },
