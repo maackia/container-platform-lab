@@ -108,7 +108,7 @@ linux/arm64
 
 ## K3s 배포
 
-K3s와 `platform-secret`을 준비한 뒤 전체 매니페스트를 적용합니다.
+K3s와 `platform-secret`을 준비한 뒤 기본 애플리케이션 매니페스트를 적용합니다. `k8s/monitoring/`은 모니터링 스택 설치 후 별도로 적용합니다.
 
 ```bash
 kubectl apply -f k8s/
@@ -142,7 +142,7 @@ helm upgrade --install monitoring \
   --wait \
   --timeout 15m
 
-kubectl apply -f k8s/
+kubectl apply -f k8s/monitoring/
 kubectl get servicemonitor app -n platform-lab
 kubectl get pods -n monitoring
 ```
@@ -209,8 +209,10 @@ kubectl port-forward \
 ├── k8s
 │   ├── 00-namespace.yaml
 │   ├── ...
-│   ├── 10-app-servicemonitor.yaml
-│   └── 11-platform-app-dashboard-configmap.yaml
+│   ├── 09-app-ingress.yaml
+│   └── monitoring
+│       ├── 10-app-servicemonitor.yaml
+│       └── 11-platform-app-dashboard-configmap.yaml
 ├── monitoring
 ├── nginx
 ├── compose.yaml

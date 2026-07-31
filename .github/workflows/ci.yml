@@ -44,11 +44,13 @@ jobs:
         run: |
           docker run --rm \
             -v "$PWD:/work:ro" \
+            -w /work \
             "ghcr.io/yannh/kubeconform:v${KUBECONFORM_VERSION}" \
             -strict \
             -summary \
             -ignore-missing-schemas \
-            /work/k8s
+            k8s/*.yaml \
+            k8s/monitoring/*.yaml
 
       - name: Set up Helm
         uses: azure/setup-helm@v5

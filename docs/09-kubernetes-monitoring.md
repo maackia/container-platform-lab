@@ -112,6 +112,14 @@ kubectl get pods -n monitoring
 kubectl get pvc -n monitoring
 ```
 
+chart 설치로 `monitoring.coreos.com` CRD와 `monitoring` namespace가 준비된 뒤 애플리케이션 모니터링 리소스를 적용한다.
+
+```bash
+kubectl apply -f k8s/monitoring/
+```
+
+이 순서를 지키면 새 K3s 클러스터에서도 ServiceMonitor의 API를 찾지 못하거나 Grafana Dashboard ConfigMap의 namespace가 없어서 배포가 중단되는 일을 피할 수 있다.
+
 ## 5. Prometheus Operator와 ServiceMonitor
 
 Prometheus Operator는 `Prometheus`, `ServiceMonitor`, `PrometheusRule` 같은 CRD를 Kubernetes API에 추가하고, 해당 리소스를 실제 Prometheus 설정으로 변환한다.
@@ -119,7 +127,7 @@ Prometheus Operator는 `Prometheus`, `ServiceMonitor`, `PrometheusRule` 같은 C
 일반 Prometheus 설정 파일에 target을 직접 추가하는 대신 다음 ServiceMonitor를 선언했다.
 
 ```text
-k8s/10-app-servicemonitor.yaml
+k8s/monitoring/10-app-servicemonitor.yaml
 ```
 
 주요 설정은 다음과 같다.
@@ -235,6 +243,8 @@ echo
 | CPU Usage by Pod | 앱 Pod별 CPU 사용량 |
 | Memory Usage by Pod | 앱 Pod별 메모리 사용량 |
 
+`Running App Targets`는 replica 두 개를 기준으로 `0=빨간색`, `1=노란색`, `2 이상=초록색`으로 표시한다. 전체 장애와 일부 장애가 정상 상태처럼 보이지 않도록 target 수에 맞춰 임계값을 설정한다.
+
 원본 대시보드 리소스는 다음 파일에 보관한다.
 
 ```text
@@ -246,7 +256,7 @@ grafana/dashboards/platform-app-overview.json
 Grafana UI에서 만든 대시보드를 Kubernetes ConfigMap으로 감싸고, Grafana sidecar가 자동으로 읽도록 구성했다.
 
 ```text
-k8s/11-platform-app-dashboard-configmap.yaml
+k8s/monitoring/11-platform-app-dashboard-configmap.yaml
 ```
 
 ConfigMap 바깥쪽 `metadata.labels`에 다음 라벨이 있어야 sidecar의 검색 대상이 된다.
@@ -271,7 +281,7 @@ data:
 적용 후 ConfigMap과 sidecar 로그를 확인한다.
 
 ```bash
-kubectl apply -f k8s/11-platform-app-dashboard-configmap.yaml
+kubectl apply -f k8s/monitoring/11-platform-app-dashboard-configmap.yaml
 kubectl get configmap platform-app-grafana-dashboard -n monitoring
 kubectl logs -n monitoring \
   deployment/monitoring-grafana \
@@ -316,7 +326,7 @@ KUBE_PROMETHEUS_STACK_VERSION: 87.19.0
 
 ```text
 Grafana Dashboard v2 JSON 확인
-→ k8s/ 매니페스트 Kubeconform 검사
+→ 기본·모니터링 매니페스트 Kubeconform 검사
 → Helm chart pull
 → helm lint
 → helm template
@@ -329,7 +339,10 @@ Prometheus Operator CRD처럼 기본 Kubernetes 스키마 저장소에 없는 �
 
 ```bash
 kubectl apply --dry-run=server -f k8s/
+kubectl apply --dry-run=server -f k8s/monitoring/
 ```
+
+두 번째 명령은 `kube-prometheus-stack` 설치 후 실행해야 ServiceMonitor CRD와 `monitoring` namespace를 기준으로 검사할 수 있다.
 
 두 검사는 서로 대체 관계가 아니다.
 
