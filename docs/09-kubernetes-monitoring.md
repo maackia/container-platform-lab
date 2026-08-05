@@ -1,6 +1,6 @@
-# Kubernetes 모니터링 스택
+# Kubernetes 모니터링과 알림
 
-이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션의 메트릭을 Prometheus로 수집해 Grafana 대시보드에 표시한 과정을 정리한다.
+이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션의 메트릭을 수집·시각화하며 replica 장애를 경고로 전달한 과정을 정리한다.
 
 구성 범위는 다음과 같다.
 
@@ -10,7 +10,13 @@ Node.js Pod /metrics
 → ServiceMonitor
 → Prometheus Operator
 → Prometheus
-→ Grafana
+├→ Grafana
+└→ PrometheusRule → Alertmanager
+
+Mac browser
+→ UTM port forwarding
+→ Traefik Ingress
+→ Grafana / Prometheus / Alertmanager Service
 ```
 
 ## 1. 실습 환경과 버전
@@ -35,6 +41,7 @@ Helm은 여러 Kubernetes 리소스를 하나의 chart로 묶고, values 파일�
 - Prometheus Operator
 - Prometheus
 - Grafana
+- Alertmanager
 - kube-state-metrics
 - prometheus-node-exporter
 - ServiceMonitor와 PrometheusRule 등 모니터링 CRD
@@ -64,6 +71,15 @@ kubeScheduler:
 kubeProxy:
   enabled: false
 ```
+
+애플리케이션 경고를 전달할 수 있도록 Alertmanager 구성요소는 활성화한다.
+
+```yaml
+alertmanager:
+  enabled: true
+```
+
+`defaultRules.rules.alertmanager: false`는 Alertmanager 프로세스를 끄는 설정이 아니라 chart가 제공하는 Alertmanager 자체 상태 경고 규칙을 비활성화하는 설정이다. 사용자 정의 애플리케이션 규칙과 Alertmanager 실행 여부는 별도로 관리된다.
 
 Grafana와 Prometheus 데이터는 K3s의 `local-path` StorageClass를 사용해 PVC에 저장한다.
 
@@ -110,6 +126,7 @@ helm list -n monitoring
 helm status monitoring -n monitoring
 kubectl get pods -n monitoring
 kubectl get pvc -n monitoring
+kubectl get prometheus,alertmanager -n monitoring
 ```
 
 chart 설치로 `monitoring.coreos.com` CRD와 `monitoring` namespace가 준비된 뒤 애플리케이션 모니터링 리소스를 적용한다.
@@ -171,19 +188,17 @@ kubectl get endpointslice \
 
 ## 6. Prometheus 접속과 쿼리
 
-로컬에서 Prometheus에 접속하려면 port-forward를 실행한다.
+Traefik Ingress와 UTM 포트 포워딩을 구성한 뒤 다음 주소로 접속한다.
 
-```bash
-kubectl port-forward \
-  -n monitoring \
-  service/monitoring-kube-prometheus-prometheus \
-  9090:9090
+```text
+http://prometheus.platform.local:8081
 ```
 
-다른 터미널에서 준비 상태를 확인한다.
+준비 상태를 확인한다.
 
 ```bash
-curl -fsS http://localhost:9090/-/ready
+curl --noproxy '*' -fsS \
+  http://prometheus.platform.local:8081/-/ready
 ```
 
 Prometheus의 Target health에서 다음 scrape pool이 `2/2 UP`이면 애플리케이션 replica 두 개를 모두 수집하는 상태다.
@@ -214,13 +229,10 @@ sum by (route) (
 
 ## 7. Grafana 대시보드
 
-Grafana 접속용 port-forward를 실행한다.
+Grafana는 다음 주소로 접속한다.
 
-```bash
-kubectl port-forward \
-  -n monitoring \
-  service/monitoring-grafana \
-  3001:80
+```text
+http://grafana.platform.local:8081
 ```
 
 관리자 비밀번호는 Secret에서 확인한다.
@@ -291,9 +303,145 @@ kubectl logs -n monitoring \
 
 대시보드를 UI에서만 저장하면 Grafana PVC에는 남지만 Git으로 변경 이력을 관리할 수 없다. JSON과 ConfigMap을 저장소에 함께 보관하면 새 환경에서도 같은 대시보드를 재현할 수 있다.
 
-## 9. Mac에서 SSH 터널로 접속
+## 9. PrometheusRule과 Alertmanager
 
-Prometheus와 Grafana port-forward가 Ubuntu VM의 loopback 주소에서 실행 중이라면 Mac에서 SSH local forwarding으로 연결할 수 있다.
+애플리케이션 replica 상태를 감시하는 사용자 정의 규칙은 다음 파일에 선언한다.
+
+```text
+k8s/monitoring/12-platform-app-prometheusrule.yaml
+```
+
+Prometheus가 이 규칙을 선택할 수 있도록 Helm release와 같은 라벨을 사용한다.
+
+```yaml
+metadata:
+  labels:
+    release: monitoring
+```
+
+Prometheus 리소스의 `ruleSelector`가 `release=monitoring`을 요구하므로 라벨이 없거나 값이 다르면 `PrometheusRule`을 생성해도 실제 규칙 목록에 나타나지 않는다. `ruleNamespaceSelector: {}`는 `platform-lab`처럼 다른 namespace의 규칙도 검색하게 한다.
+
+추가한 규칙은 다음 두 개다.
+
+| 경고 | 조건 | 지속 시간 | 심각도 |
+|---|---|---:|---|
+| `PlatformAppReplicaDegraded` | 사용 가능한 app replica가 1개 | 1분 | warning |
+| `PlatformAppDown` | 사용 가능한 app replica가 0개 | 1분 | critical |
+
+경고는 조건이 참이 되는 즉시 알림으로 전달되지 않는다.
+
+```text
+조건이 거짓 → Inactive
+조건이 참 → Pending
+1분 동안 계속 참 → Firing
+replica 복구 → Resolved
+```
+
+규칙과 Alertmanager 상태를 확인한다.
+
+```bash
+kubectl get prometheusrule platform-app-alerts -n platform-lab
+kubectl get prometheus,alertmanager -n monitoring
+kubectl get pods -n monitoring \
+  -l app.kubernetes.io/name=alertmanager
+```
+
+실습에서는 app replica를 단계적으로 줄여 경고 상태를 확인했다.
+
+```bash
+kubectl scale deployment/app -n platform-lab --replicas=1
+kubectl rollout status deployment/app -n platform-lab
+
+kubectl scale deployment/app -n platform-lab --replicas=0
+kubectl rollout status deployment/app -n platform-lab
+```
+
+검증이 끝나면 반드시 원래 상태로 복구한다.
+
+```bash
+kubectl scale deployment/app -n platform-lab --replicas=2
+kubectl rollout status deployment/app -n platform-lab
+kubectl get pods -n platform-lab -l app=platform-app
+```
+
+현재 Alertmanager는 외부 수신자를 연결하지 않은 기본 `null` receiver를 사용한다. 따라서 Prometheus에서 발생한 경고가 Alertmanager UI와 API에 전달되는 것까지 검증하며, Slack이나 이메일 발송은 후속 범위로 둔다.
+
+## 10. Traefik Ingress로 모니터링 서비스 접근
+
+모니터링 서비스용 Ingress는 다음 파일에 선언한다.
+
+```text
+k8s/monitoring/13-monitoring-ingress.yaml
+```
+
+Ingress와 백엔드 Service는 같은 namespace에 있어야 하므로 이 리소스는 `monitoring` namespace에 생성한다. 외부 접근에는 chart가 만든 일반 ClusterIP Service를 사용하고, `prometheus-operated`와 `alertmanager-operated` 같은 내부 Headless Service는 사용하지 않는다.
+
+라우팅 구성은 다음과 같다.
+
+```text
+grafana.platform.local
+→ monitoring-grafana:80
+
+prometheus.platform.local
+→ monitoring-kube-prometheus-prometheus:9090
+
+alertmanager.platform.local
+→ monitoring-kube-prometheus-alertmanager:9093
+```
+
+Mac의 `/etc/hosts`에는 다음 항목을 추가한다.
+
+```text
+127.0.0.1 app.platform.local
+127.0.0.1 grafana.platform.local
+127.0.0.1 prometheus.platform.local
+127.0.0.1 alertmanager.platform.local
+```
+
+UTM에서는 호스트 `8081`을 Ubuntu 게스트 `80`으로 한 번만 전달한다. 이후 Traefik이 HTTP `Host` 헤더를 보고 목적지를 결정한다.
+
+```text
+Mac browser :8081
+→ UTM guest :80
+→ Traefik
+→ matching Kubernetes Service
+```
+
+접근 상태를 확인한다.
+
+```bash
+kubectl get ingress -A
+
+curl --noproxy '*' -fsS \
+  http://app.platform.local:8081/health
+
+curl --noproxy '*' -fsS \
+  http://grafana.platform.local:8081/api/health
+
+curl --noproxy '*' -fsS \
+  http://prometheus.platform.local:8081/-/ready
+
+curl --noproxy '*' -fsS \
+  http://alertmanager.platform.local:8081/-/ready
+```
+
+회사 VPN이나 HTTP 프록시가 로컬 도메인을 가로채는 환경에서는 `--noproxy '*'`로 직접 연결 여부를 확인한다.
+
+## 11. port-forward와 SSH 터널
+
+Ingress를 사용할 수 없는 임시 점검 상황에서는 `kubectl port-forward`로 특정 Service만 로컬에 노출할 수 있다.
+
+```bash
+kubectl port-forward -n monitoring \
+  service/monitoring-kube-prometheus-prometheus \
+  9090:9090
+
+kubectl port-forward -n monitoring \
+  service/monitoring-grafana \
+  3001:80
+```
+
+port-forward가 Ubuntu VM의 loopback 주소에서 실행 중이라면 Mac에서 SSH local forwarding으로 연결한다.
 
 ```bash
 ssh -p 2222 \
@@ -301,8 +449,6 @@ ssh -p 2222 \
   -L 3001:127.0.0.1:3001 \
   micah@localhost
 ```
-
-`-L`은 Mac의 로컬 포트를 SSH 서버가 실행 중인 Ubuntu VM의 주소와 포트로 전달한다.
 
 ```text
 Mac localhost:3001
@@ -312,7 +458,9 @@ Mac localhost:3001
 → Grafana Service
 ```
 
-## 10. 정적 검증과 CI
+Ingress는 여러 서비스를 지속적으로 접근하는 기본 경로이고, port-forward와 SSH 터널은 일회성 디버깅 경로로 구분한다.
+
+## 12. 정적 검증과 CI
 
 CI는 도구와 chart 버전을 고정한다.
 
@@ -354,7 +502,7 @@ kubectl --dry-run=server
 → 현재 클러스터의 CRD와 API 기준 검사
 ```
 
-## 11. 주요 문제 해결
+## 13. 주요 문제 해결
 
 ### OCI registry 인증서 오류
 
@@ -415,6 +563,23 @@ timedatectl status
 
 `System clock synchronized: yes`와 `NTP service: active`를 확인한다. timezone 표기보다 실제 시계가 어긋났는지가 중요하다.
 
+### 애플리케이션 경고가 계속 Inactive인 경우
+
+`Inactive`는 규칙 로딩 실패가 아니라 현재 표현식의 조건이 거짓이라는 뜻일 수 있다. 먼저 실제 replica 수와 규칙의 쿼리 결과를 확인한다.
+
+```bash
+kubectl get deployment app -n platform-lab
+kubectl get prometheusrule platform-app-alerts -n platform-lab
+```
+
+정상 replica가 2개인 상태에서는 `== 1`과 `== 0` 조건이 모두 거짓이므로 두 규칙이 Inactive인 것이 정상이다. replica를 줄인 뒤에도 즉시 Firing되지 않는 이유는 `for: 1m` 동안 조건이 계속 참이어야 하기 때문이다.
+
+### Alertmanager 화면에서 경고가 바로 보이지 않는 경우
+
+Prometheus에서 규칙이 Firing이어도 Alertmanager 화면에서는 namespace별 그룹이 접힌 상태일 수 있다. `namespace="platform-lab"` 그룹을 펼치고 `active=true`, `silenced=false`, `inhibited=false` 필터를 확인한다.
+
+현재 receiver가 `null`인 것은 경고 전달 실패가 아니라 외부 알림 채널을 아직 연결하지 않았다는 뜻이다.
+
 ### Kubeconform의 missing kind 오류
 
 렌더링 파일 첫 부분에 `Pulled:` 또는 `Digest:` 같은 Helm 메시지가 섞이면 Kubernetes 문서가 아닌 텍스트를 파싱하면서 `missing 'kind' key`가 발생할 수 있다.
@@ -427,7 +592,7 @@ helm pull OCI chart
 → helm template local .tgz > rendered.yaml
 ```
 
-## 12. 현재 완료 범위
+## 14. 현재 완료 범위
 
 ```text
 kube-prometheus-stack 설치
@@ -438,7 +603,11 @@ kube-prometheus-stack 설치
 → PromQL 쿼리 검증
 → Grafana 대시보드 구성
 → ConfigMap 기반 대시보드 provisioning
+→ PrometheusRule 기반 replica 경고
+→ Alertmanager Pending·Firing·Resolved 검증
+→ Traefik 호스트 기반 모니터링 Ingress
+→ UTM 단일 HTTP 포트 포워딩
 → Helm 및 Kubernetes 리소스 CI 검증
 ```
 
-다음 확장 단계에서는 경고 규칙과 Alertmanager, 또는 실제 부하를 발생시킨 상태에서 대시보드와 알림을 검증하는 과정을 다룰 수 있다.
+다음 확장 단계에서는 Slack·이메일 같은 실제 Alertmanager receiver, Silence·Inhibition 정책, 부하 테스트와 추가 경고 규칙을 다룰 수 있다.
