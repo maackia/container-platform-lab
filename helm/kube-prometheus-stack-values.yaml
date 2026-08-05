@@ -1,5 +1,5 @@
 alertmanager:
-  enabled: false
+  enabled: true
 
 defaultRules:
   rules:
