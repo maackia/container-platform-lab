@@ -9,7 +9,7 @@ spec:
   ingressClassName: traefik
 
   rules:
-    - host: platform.local
+    - host: app.platform.local
 
       http:
         paths:
