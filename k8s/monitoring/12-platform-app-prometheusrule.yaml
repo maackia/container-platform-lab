@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-app-alerts
+  namespace: platform-lab
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: platform-app.rules
+      rules:
+        - alert: PlatformAppReplicaDegraded
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="platform-lab",
+              deployment="app"
+            } == 1
+          for: 1m
+          labels:
+            severity: warning
+            service: platform-app
+          annotations:
+            summary: Platform application replicas are degraded
+            description: >-
+              The platform application has only {{ $value }}
+              available replica.
+
+        - alert: PlatformAppDown
+          expr: |
+            kube_deployment_status_replicas_available{
+              namespace="platform-lab",
+              deployment="app"
+            } == 0
+          for: 1m
+          labels:
+            severity: critical
+            service: platform-app
+          annotations:
+            summary: Platform application is down
+            description: >-
+              The platform application has no available replicas.
