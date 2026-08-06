@@ -169,6 +169,25 @@ jobs:
             exit 1
           fi
 
+      - name: Check lab endpoints are disabled by default
+        run: |
+          slow_status="$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            http://localhost:8080/slow
+          )"
+
+          error_status="$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            http://localhost:8080/error
+          )"
+
+          test "$slow_status" = "404"
+          test "$error_status" = "404"
+
       - name: Wait for Prometheus readiness
         run: |
           for i in {1..30}; do
@@ -216,6 +235,35 @@ jobs:
           done
 
           echo "Prometheus target did not become healthy"
+          exit 1
+
+      - name: Wait for application RED metrics
+        run: |
+          curl -fsS http://localhost:8080/ > /dev/null
+
+          for i in {1..20}; do
+            response="$(curl \
+              --silent \
+              --show-error \
+              --fail \
+              --connect-timeout 2 \
+              --max-time 5\
+              'http://localhost:9090/api/v1/query?query=app_http_request_duration_seconds_count%7Bjob%3D%22node_app%22%7D' 2>/dev/null || true
+            )"
+
+            echo "$response"
+
+            if echo "$response" |
+              grep -q '"__name__":"app_http_request_duration_seconds_count"'; then
+              echo "Application RED metrics are available"
+              exit 0
+            fi
+
+            echo "Waiting for application RED metircs... attempt ${i}/20"
+            sleep 3
+          done
+
+          echo "Application RED metrics did not become available"
           exit 1
 
       - name: Wait for Grafana health
