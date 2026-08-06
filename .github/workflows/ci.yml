@@ -169,6 +169,41 @@ jobs:
             exit 1
           fi
 
+      - name: Check query string routing
+        run: |
+          root_status="$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            'http://localhost:8080/?source=ci'
+          )"
+
+          health_status="$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            'http://localhost:8080/health?probe=ci'
+          )"
+
+          metrics_status="$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            'http://localhost:8080/metrics?format=text'
+          )"
+
+          missing_status="$(curl \
+            --silent \
+            --output /dev/null \
+            --write-out '%{http_code}' \
+            'http://localhost:8080/not-found?source=ci'
+          )"
+
+          test "$root_status" = "200"
+          test "$health_status" = "200"
+          test "$metrics_status" = "200"
+          test "$missing_status" = "404"
+
       - name: Check lab endpoints are disabled by default
         run: |
           slow_status="$(curl \
