@@ -71,6 +71,7 @@ async function queryDb() {
 
 const server = http.createServer(async (req, res) => {
   const startedAt = process.hrtime.bigint();
+  const pathname = new URL(req.url, "http://localhost").pathname;
   let route = "unknown";
 
   res.once("finish", () => {
@@ -88,7 +89,7 @@ const server = http.createServer(async (req, res) => {
   });
 
 
-  if (req.url === "/health") {
+  if (pathname === "/health") {
     route = "/health";
 
     res.writeHead(200, {
@@ -98,8 +99,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.url === "/metrics") {
-    route = "/metrics",
+  if (pathname === "/metrics") {
+    route = "/metrics";
 
     res.writeHead(200, {
       "Content-Type": promClient.register.contentType,
@@ -108,7 +109,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (labTestEndpointsEnabled && req.url === "/slow") {
+  if (labTestEndpointsEnabled && pathname === "/slow") {
     route = "/slow";
 
     await sleep(1500);
@@ -120,7 +121,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (labTestEndpointsEnabled && req.url === "/error") {
+  if (labTestEndpointsEnabled && pathname === "/error") {
     route = "/error";
 
     res.writeHead(500, {
@@ -130,7 +131,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.url !== "/") {
+  if (pathname !== "/") {
     route = "unknown";
 
     res.writeHead(404, {
