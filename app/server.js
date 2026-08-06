@@ -10,6 +10,13 @@ const httpRequestsTotal = new promClient.Counter({
   labelNames: ["method", "route", "status_code"],
 });
 
+const httpRequestDurationSeconds = new promClient.Histogram({
+  name: "app_http_request_duration_seconds",
+  help: "HTTP request duration in seconds",
+  labelNames: ["method", "route", "status_code"],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
+});
+
 const dbQueriesTotal = new promClient.Counter({
   name: "app_db_queries_total",
   help: "Total number of database queries",
@@ -23,6 +30,10 @@ const dbConfig = {
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
 };
+
+const labTestEndpointsEnabled = process.env.LAB_TEST_ENDPOINTS_ENABLED === "true";
+
+const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function queryDb() {
   const dbClient = new Client(dbConfig);
@@ -59,12 +70,26 @@ async function queryDb() {
 }
 
 const server = http.createServer(async (req, res) => {
-  if (req.url === "/health") {
-    httpRequestsTotal.inc({
+  const startedAt = process.hrtime.bigint();
+  let route = "unknown";
+
+  res.once("finish", () => {
+    const durationSeconds =
+      Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+
+    const labels = {
       method: req.method,
-      route: "/health",
-      status_code: "200",
-    });
+      route,
+      status_code: String(res.statusCode),
+    };
+
+    httpRequestsTotal.inc(labels);
+    httpRequestDurationSeconds.observe(labels, durationSeconds);
+  });
+
+
+  if (req.url === "/health") {
+    route = "/health";
 
     res.writeHead(200, {
       "Content-Type": "text/plain",
@@ -74,11 +99,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.url === "/metrics") {
-    httpRequestsTotal.inc({
-      method: req.method,
-      route: "/metrics",
-      status_code: "200",
-    });
+    route = "/metrics",
 
     res.writeHead(200, {
       "Content-Type": promClient.register.contentType,
@@ -87,14 +108,42 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (labTestEndpointsEnabled && req.url === "/slow") {
+    route = "/slow";
+
+    await sleep(1500);
+
+    res.writeHead(200, {
+      "Content-Type": "text/plain",
+    });
+    res.end("Slow response completed\n");
+    return;
+  }
+
+  if (labTestEndpointsEnabled && req.url === "/error") {
+    route = "/error";
+
+    res.writeHead(500, {
+      "Content-Type": "text/plain",
+    });
+    res.end("Intentional lab error\n");
+    return;
+  }
+
+  if (req.url !== "/") {
+    route = "unknown";
+
+    res.writeHead(404, {
+      "Content-Type": "text/plain",
+    });
+    res.end("Not Found\n");
+    return;
+  }
+
+  route = "/";
+
   try {
     const count = await queryDb();
-
-    httpRequestsTotal.inc({
-      method: req.method,
-      route: "/",
-      status_code: "200",
-    });
 
     res.writeHead(200, {
       "Content-Type": "text/plain",
@@ -102,12 +151,6 @@ const server = http.createServer(async (req, res) => {
     res.end(`Hello from Node app container\nVisit count: ${count}\n`);
   } catch (err) {
     console.error(err);
-
-    httpRequestsTotal.inc({
-      method: req.method,
-      route: "/",
-      status_code: "500",
-    });
 
     res.writeHead(500, {
       "Content-Type": "text/plain",
