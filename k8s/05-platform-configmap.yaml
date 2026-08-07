@@ -10,6 +10,8 @@ data:
   DB_PORT: "5432"
   DB_USER: appuser
   DB_NAME: appdb
+  
+  LAB_TEST_ENDPOINTS_ENABLED: "true"
 
   POSTGRES_USER: appuser
   POSTGRES_DB: appdb
