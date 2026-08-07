@@ -2,7 +2,7 @@
 
 ## 1. 구성 목적
 
-애플리케이션이 실행 중이라는 사실만 확인하는 것을 넘어, 요청 수·DB 쿼리·메모리 사용량을 시간 흐름에 따라 관찰하기 위해 Prometheus와 Grafana를 추가했습니다.
+애플리케이션이 실행 중이라는 사실만 확인하는 것을 넘어, 요청률·오류율·응답시간·DB 쿼리·메모리 사용량을 시간 흐름에 따라 관찰하기 위해 Prometheus와 Grafana를 추가했습니다.
 
 ```text
 Node.js /metrics
@@ -79,6 +79,45 @@ DB 쿼리 실행 수를 누적하는 Counter입니다.
 
 - `operation`
 - `status`
+
+```text
+app_http_request_duration_seconds
+```
+
+HTTP 요청 처리 시간을 초 단위로 관찰하는 Histogram입니다.
+
+라벨:
+
+- `method`
+- `route`
+- `status_code`
+
+Histogram은 관측값을 구간별로 누적해 다음 시계열을 만듭니다.
+
+- `_bucket`: 각 응답시간 구간 이하에 들어온 요청 수
+- `_sum`: 전체 응답시간 합계
+- `_count`: 전체 관측 요청 수
+
+이 중 `_bucket`을 `histogram_quantile()`로 계산하면 p95 같은 응답시간 백분위수를 구할 수 있습니다.
+
+### RED 메트릭
+
+이번 애플리케이션에서는 서비스 관점의 핵심 신호를 RED 방식으로 확인합니다.
+
+| 항목 | 의미 | 사용 메트릭 |
+|---|---|---|
+| Rate | 초당 처리 요청 수 | `app_http_requests_total` |
+| Errors | 실패 응답의 비율 | `app_http_requests_total{status_code=~"5.."}` |
+| Duration | 요청 처리 시간 분포와 p95 | `app_http_request_duration_seconds_bucket` |
+
+느린 응답과 오류 데이터를 의도적으로 만들 수 있도록 학습용 endpoint도 제공합니다.
+
+```text
+/slow  -> 약 1.5초 후 200 응답
+/error -> 의도적인 500 응답
+```
+
+이 endpoint는 `LAB_TEST_ENDPOINTS_ENABLED=true`일 때만 활성화합니다. 기본 운영 경로와 실습용 장애 발생 경로를 분리하기 위한 설정입니다.
 
 메트릭은 해당 코드 경로가 한 번 이상 실행된 뒤 나타날 수 있습니다. 예를 들어 DB 메트릭을 확인하기 전에는 먼저 애플리케이션 요청을 발생시킵니다.
 
@@ -231,6 +270,20 @@ for i in $(seq 1 20); do
 done
 ```
 
+RED 메트릭 테스트가 필요하면 `.env`에서 다음 값을 활성화하고 Compose 스택을 다시 생성합니다.
+
+```text
+LAB_TEST_ENDPOINTS_ENABLED=true
+```
+
+```bash
+for i in $(seq 1 10); do
+  curl -s http://localhost:8080/ > /dev/null
+  curl -s http://localhost:8080/slow > /dev/null
+  curl -s http://localhost:8080/error > /dev/null
+done
+```
+
 Prometheus에서 확인할 기본 PromQL:
 
 ```promql
@@ -248,6 +301,58 @@ app_db_queries_total
 ```promql
 rate(app_http_requests_total{route="/"}[1m])
 ```
+
+### RED 쿼리
+
+healthcheck와 Prometheus scrape 요청을 제외한 route·상태 코드별 요청률:
+
+```promql
+sum by (route, status_code) (
+  rate(app_http_requests_total{
+    job="node_app",
+    route!~"/health|/metrics"
+  }[5m])
+)
+```
+
+전체 애플리케이션 요청 중 5xx 오류 비율:
+
+```promql
+100 *
+sum(
+  rate(app_http_requests_total{
+    job="node_app",
+    status_code=~"5..",
+    route!~"/health|/metrics"
+  }[5m])
+)
+/
+clamp_min(
+  sum(
+    rate(app_http_requests_total{
+      job="node_app",
+      route!~"/health|/metrics"
+    }[5m])
+  ),
+  0.000001
+)
+```
+
+route별 p95 응답시간:
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le, route) (
+    rate(app_http_request_duration_seconds_bucket{
+      job="node_app",
+      route!~"/health|/metrics"
+    }[5m])
+  )
+)
+```
+
+p95는 최근 구간의 Histogram 표본을 이용한 추정값입니다. 선택한 시간 범위에 요청이 거의 없으면 결과가 비어 있거나 실제 체감과 다르게 보일 수 있습니다.
 
 ## 10. 문제 해결
 

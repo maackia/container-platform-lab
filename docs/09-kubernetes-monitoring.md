@@ -227,6 +227,90 @@ sum by (route) (
 )
 ```
 
+애플리케이션 v0.2.0은 요청 수 Counter와 요청 시간 Histogram을 노출한다. 이를 이용해 Rate, Errors, Duration 세 신호를 함께 확인한다.
+
+학습용 트래픽 생성:
+
+```bash
+for i in $(seq 1 10); do
+  curl --noproxy '*' -s \
+    http://app.platform.local:8081/ > /dev/null
+  curl --noproxy '*' -s \
+    http://app.platform.local:8081/slow > /dev/null
+  curl --noproxy '*' -s \
+    http://app.platform.local:8081/error > /dev/null
+done
+```
+
+route·상태 코드별 요청률:
+
+```promql
+sum by (route, status_code) (
+  rate(app_http_requests_total{
+    namespace="platform-lab",
+    job="app",
+    route!~"/health|/metrics"
+  }[5m])
+)
+```
+
+5xx 오류율:
+
+```promql
+100 *
+sum(
+  rate(app_http_requests_total{
+    namespace="platform-lab",
+    job="app",
+    status_code=~"5..",
+    route!~"/health|/metrics"
+  }[5m])
+)
+/
+clamp_min(
+  sum(
+    rate(app_http_requests_total{
+      namespace="platform-lab",
+      job="app",
+      route!~"/health|/metrics"
+    }[5m])
+  ),
+  0.000001
+)
+```
+
+route별 p95 응답시간:
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le, route) (
+    rate(app_http_request_duration_seconds_bucket{
+      namespace="platform-lab",
+      job="app",
+      route!~"/health|/metrics"
+    }[5m])
+  )
+)
+```
+
+현재 전체 p95 응답시간:
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le) (
+    rate(app_http_request_duration_seconds_bucket{
+      namespace="platform-lab",
+      job="app",
+      route!~"/health|/metrics"
+    }[$__rate_interval])
+  )
+)
+```
+
+Histogram 기반 p95는 선택한 시간 범위의 표본으로 계산한 추정값이다. 요청이 없으면 그래프가 비어 있을 수 있으므로 `/`, `/slow`, `/error` 트래픽을 발생시킨 뒤 확인한다.
+
 ## 7. Grafana 대시보드
 
 Grafana는 다음 주소로 접속한다.
@@ -250,12 +334,18 @@ echo
 | 패널 | 의미 |
 |---|---|
 | Running App Targets | Prometheus가 수집 중인 앱 target 수 |
-| Application Request Rate | 애플리케이션 전체 HTTP 요청률 |
-| Requests by Route | `/`, `/health`, `/metrics` 경로별 요청률 |
+| Current p95 Response Time | 최근 요청의 전체 p95 응답시간 |
+| Requests by Route | `/`, `/error`, `/slow` 등 경로별 요청률 |
+| p95 Response Time by Route | 경로별 p95 응답시간 추이 |
+| Application Request Rate | route·상태 코드별 HTTP 요청률 |
+| Application Error Rate (%) | 전체 요청 중 5xx 응답 비율 |
 | CPU Usage by Pod | 앱 Pod별 CPU 사용량 |
 | Memory Usage by Pod | 앱 Pod별 메모리 사용량 |
+| Node.js Event Loop Lag p99 | Node.js event loop 지연의 p99 |
 
 `Running App Targets`는 replica 두 개를 기준으로 `0=빨간색`, `1=노란색`, `2 이상=초록색`으로 표시한다. 전체 장애와 일부 장애가 정상 상태처럼 보이지 않도록 target 수에 맞춰 임계값을 설정한다.
+
+`Current p95 Response Time`은 `0.5초 이상=노란색`, `1초 이상=빨간색`으로 표시한다. `/slow` 요청을 발생시키면 느린 응답이 p95와 route별 그래프에 반영되는 과정을 확인할 수 있다.
 
 원본 대시보드 리소스는 다음 파일에 보관한다.
 
@@ -302,6 +392,44 @@ kubectl logs -n monitoring \
 ```
 
 대시보드를 UI에서만 저장하면 Grafana PVC에는 남지만 Git으로 변경 이력을 관리할 수 없다. JSON과 ConfigMap을 저장소에 함께 보관하면 새 환경에서도 같은 대시보드를 재현할 수 있다.
+
+대시보드의 source of truth는 다음 JSON이다.
+
+```text
+grafana/dashboards/platform-app-overview.json
+```
+
+Grafana UI에서 내보낸 JSON을 사용하거나 이 파일을 직접 수정한 뒤 ConfigMap을 다시 생성한다.
+
+```bash
+jq empty grafana/dashboards/platform-app-overview.json
+
+kubectl create configmap platform-app-grafana-dashboard \
+  --namespace monitoring \
+  --from-file=platform-app-overview.json=grafana/dashboards/platform-app-overview.json \
+  --dry-run=client \
+  -o yaml \
+  > /tmp/platform-app-dashboard.yaml
+
+kubectl label --local \
+  -f /tmp/platform-app-dashboard.yaml \
+  grafana_dashboard=1 \
+  -o yaml \
+  > k8s/monitoring/11-platform-app-dashboard-configmap.yaml
+
+kubectl apply \
+  -f k8s/monitoring/11-platform-app-dashboard-configmap.yaml
+```
+
+```text
+Dashboard JSON 수정
+→ ConfigMap 재생성
+→ kubectl apply
+→ Grafana sidecar 감지
+→ 대시보드 자동 갱신
+```
+
+직접 수정과 UI 편집 모두 가능하지만, 최종 변경은 JSON과 ConfigMap에 반영해야 새 클러스터에서도 같은 대시보드를 재현할 수 있다.
 
 ## 9. PrometheusRule과 Alertmanager
 
@@ -364,7 +492,7 @@ kubectl rollout status deployment/app -n platform-lab
 kubectl get pods -n platform-lab -l app=platform-app
 ```
 
-현재 Alertmanager는 외부 수신자를 연결하지 않은 기본 `null` receiver를 사용한다. 따라서 Prometheus에서 발생한 경고가 Alertmanager UI와 API에 전달되는 것까지 검증하며, Slack이나 이메일 발송은 후속 범위로 둔다.
+현재 Alertmanager는 외부 수신자를 연결하지 않은 기본 `null` receiver를 사용한다. 따라서 Prometheus에서 발생한 경고가 Alertmanager UI와 API에 전달되는 것까지 검증하며, Discord 알림 발송은 후속 범위로 둔다.
 
 ## 10. Traefik Ingress로 모니터링 서비스 접근
 
@@ -600,8 +728,9 @@ kube-prometheus-stack 설치
 → Prometheus Operator와 CRD 구성
 → ServiceMonitor 기반 앱 메트릭 수집
 → 앱 replica 2개 target 확인
-→ PromQL 쿼리 검증
-→ Grafana 대시보드 구성
+→ 애플리케이션 v0.2.0 배포
+→ RED 요청률·오류율·p95 쿼리 검증
+→ Grafana RED·Pod 리소스 대시보드 구성
 → ConfigMap 기반 대시보드 provisioning
 → PrometheusRule 기반 replica 경고
 → Alertmanager Pending·Firing·Resolved 검증
@@ -610,4 +739,4 @@ kube-prometheus-stack 설치
 → Helm 및 Kubernetes 리소스 CI 검증
 ```
 
-다음 확장 단계에서는 Slack·이메일 같은 실제 Alertmanager receiver, Silence·Inhibition 정책, 부하 테스트와 추가 경고 규칙을 다룰 수 있다.
+다음 확장 단계에서는 Discord Alertmanager receiver, Silence·Inhibition 정책, 부하 테스트와 오류율·응답시간 경고 규칙을 다룰 수 있다.
