@@ -8,8 +8,8 @@ data:
         "name": "adjbc4s",
         "namespace": "default",
         "uid": "42385175-be5b-44ce-9623-03325173d55b",
-        "resourceVersion": "1785411362001000",
-        "generation": 10,
+        "resourceVersion": "1786068340715003",
+        "generation": 11,
         "creationTimestamp": "2026-07-30T08:41:11Z",
         "labels": {
           "grafana.app/deprecatedInternalID": "449399758823424"
@@ -18,11 +18,11 @@ data:
           "grafana.app/createdBy": "user:aft25zcsjc6psb",
           "grafana.app/managedBy": "classic-file-provisioning",
           "grafana.app/managerId": "sidecarProvider",
-          "grafana.app/sourceChecksum": "2e220417cd4fc63fbd1e97a5e45bc9d6",
+          "grafana.app/sourceChecksum": "76292496b0195202ef7363899edc13d6",
           "grafana.app/sourcePath": "/tmp/dashboards/platform-app-overview.json",
-          "grafana.app/sourceTimestamp": "1785411361000",
-          "grafana.app/updatedBy": "user:aft25zcsjc6psb",
-          "grafana.app/updatedTimestamp": "2026-07-30T10:21:18Z",
+          "grafana.app/sourceTimestamp": "1786068340000",
+          "grafana.app/updatedBy": "access-policy:service",
+          "grafana.app/updatedTimestamp": "2026-08-07T02:05:40Z",
           "grafana.app/folder": ""
         }
       },
@@ -102,12 +102,16 @@ data:
                         "mode": "absolute",
                         "steps": [
                           {
-                            "color": "green",
+                            "color": "red",
                             "value": 0
                           },
                           {
-                            "color": "red",
-                            "value": 80
+                            "color": "orange",
+                            "value": 1
+                          },
+                          {
+                            "color": "green",
+                            "value": 2
                           }
                         ]
                       }
@@ -1056,8 +1060,12 @@ data:
                             "value": 0
                           },
                           {
+                            "color": "#EAB839",
+                            "value": 0.5
+                          },
+                          {
                             "color": "red",
-                            "value": 80
+                            "value": 1
                           }
                         ]
                       },
