@@ -1,6 +1,6 @@
 apiVersion: v1
 data:
-  platform-app-overview.json: |
+  platform-app-overview.json: |-
     {
       "apiVersion": "dashboard.grafana.app/v2",
       "kind": "Dashboard",
@@ -8,18 +8,22 @@ data:
         "name": "adjbc4s",
         "namespace": "default",
         "uid": "42385175-be5b-44ce-9623-03325173d55b",
-        "resourceVersion": "1785406878868004",
-        "generation": 10,
+        "resourceVersion": "1786068340715003",
+        "generation": 11,
         "creationTimestamp": "2026-07-30T08:41:11Z",
         "labels": {
           "grafana.app/deprecatedInternalID": "449399758823424"
         },
         "annotations": {
           "grafana.app/createdBy": "user:aft25zcsjc6psb",
-          "grafana.app/folder": "",
-          "grafana.app/saved-from-ui": "Grafana v13.1.1 (e784b7782a)",
-          "grafana.app/updatedBy": "user:aft25zcsjc6psb",
-          "grafana.app/updatedTimestamp": "2026-07-30T10:21:18Z"
+          "grafana.app/managedBy": "classic-file-provisioning",
+          "grafana.app/managerId": "sidecarProvider",
+          "grafana.app/sourceChecksum": "76292496b0195202ef7363899edc13d6",
+          "grafana.app/sourcePath": "/tmp/dashboards/platform-app-overview.json",
+          "grafana.app/sourceTimestamp": "1786068340000",
+          "grafana.app/updatedBy": "access-policy:service",
+          "grafana.app/updatedTimestamp": "2026-08-07T02:05:40Z",
+          "grafana.app/folder": ""
         }
       },
       "spec": {
@@ -27,20 +31,20 @@ data:
           {
             "kind": "AnnotationQuery",
             "spec": {
-              "query": {
-                "kind": "DataQuery",
-                "group": "grafana",
-                "version": "v0",
-                "datasource": {
-                  "name": "-- Grafana --"
-                },
-                "spec": {}
-              },
+              "builtIn": true,
               "enable": true,
               "hide": true,
               "iconColor": "rgba(0, 211, 255, 1)",
               "name": "Annotations & Alerts",
-              "builtIn": true
+              "query": {
+                "datasource": {
+                  "name": "-- Grafana --"
+                },
+                "group": "grafana",
+                "kind": "DataQuery",
+                "spec": {},
+                "version": "v0"
+              }
             }
           }
         ],
@@ -50,10 +54,6 @@ data:
           "panel-1": {
             "kind": "Panel",
             "spec": {
-              "id": 1,
-              "title": "Running App Targets",
-              "description": "",
-              "links": [],
               "data": {
                 "kind": "QueryGroup",
                 "spec": {
@@ -61,34 +61,63 @@ data:
                     {
                       "kind": "PanelQuery",
                       "spec": {
+                        "hidden": false,
                         "query": {
-                          "kind": "DataQuery",
-                          "group": "prometheus",
-                          "version": "v0",
                           "datasource": {
                             "name": "prometheus"
                           },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
                           "spec": {
                             "editorMode": "code",
                             "expr": "sum(up{\n  namespace=\"platform-lab\",\n  job=\"app\"\n})",
                             "legendFormat": "__auto",
                             "range": true
-                          }
+                          },
+                          "version": "v0"
                         },
-                        "refId": "A",
-                        "hidden": false
+                        "refId": "A"
                       }
                     }
                   ],
-                  "transformations": [],
-                  "queryOptions": {}
+                  "queryOptions": {},
+                  "transformations": []
                 }
               },
+              "description": "",
+              "id": 1,
+              "links": [],
+              "title": "Running App Targets",
               "vizConfig": {
-                "kind": "VizConfig",
                 "group": "stat",
-                "version": "13.1.1",
+                "kind": "VizConfig",
                 "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "fixedColor": "#ad46ff",
+                        "mode": "thresholds"
+                      },
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "red",
+                            "value": 0
+                          },
+                          {
+                            "color": "orange",
+                            "value": 1
+                          },
+                          {
+                            "color": "green",
+                            "value": 2
+                          }
+                        ]
+                      }
+                    },
+                    "overrides": []
+                  },
                   "options": {
                     "colorMode": "value",
                     "graphMode": "area",
@@ -105,44 +134,15 @@ data:
                     "showPercentChange": false,
                     "textMode": "auto",
                     "wideLayout": true
-                  },
-                  "fieldConfig": {
-                    "defaults": {
-                      "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                          {
-                            "value": 0,
-                            "color": "red"
-                          },
-                          {
-                            "value": 1,
-                            "color": "yellow"
-                          },
-                          {
-                            "value": 2,
-                            "color": "green"
-                          }
-                        ]
-                      },
-                      "color": {
-                        "mode": "thresholds",
-                        "fixedColor": "#ad46ff"
-                      }
-                    },
-                    "overrides": []
                   }
-                }
+                },
+                "version": "13.1.1"
               }
             }
           },
           "panel-2": {
             "kind": "Panel",
             "spec": {
-              "id": 2,
-              "title": "Application Request Rate",
-              "description": "",
-              "links": [],
               "data": {
                 "kind": "QueryGroup",
                 "spec": {
@@ -150,68 +150,39 @@ data:
                     {
                       "kind": "PanelQuery",
                       "spec": {
+                        "hidden": false,
                         "query": {
-                          "kind": "DataQuery",
-                          "group": "prometheus",
-                          "version": "v0",
                           "datasource": {
                             "name": "prometheus"
                           },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
                           "spec": {
                             "editorMode": "code",
-                            "expr": "sum by (route, status_code) (\n  rate(app_http_requests_total{\n    namespace=\"platform-lab\",\n    job=\"app\",\n    route!~\"/(health|metrics)\"\n  }[5m])\n)",
+                            "expr": "sum by (route, status_code) (\n  rate(app_http_requests_total{\n    namespace=\"platform-lab\",\n    job=\"app\",\n    route!~\"/health|/metrics\"\n  }[5m])\n)",
                             "legendFormat": "__auto",
                             "range": true
-                          }
+                          },
+                          "version": "v0"
                         },
-                        "refId": "A",
-                        "hidden": false
+                        "refId": "A"
                       }
                     }
                   ],
-                  "transformations": [],
-                  "queryOptions": {}
+                  "queryOptions": {},
+                  "transformations": []
                 }
               },
+              "description": "",
+              "id": 2,
+              "links": [],
+              "title": "Application Request Rate",
               "vizConfig": {
-                "kind": "VizConfig",
                 "group": "timeseries",
-                "version": "13.1.1",
+                "kind": "VizConfig",
                 "spec": {
-                  "options": {
-                    "annotations": {
-                      "clustering": -1,
-                      "multiLane": false
-                    },
-                    "legend": {
-                      "calcs": [],
-                      "displayMode": "list",
-                      "enableFacetedFilter": false,
-                      "overflow": "ellipsis",
-                      "placement": "bottom",
-                      "showLegend": true
-                    },
-                    "tooltip": {
-                      "hideZeros": false,
-                      "mode": "single",
-                      "sort": "none"
-                    }
-                  },
                   "fieldConfig": {
                     "defaults": {
-                      "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                          {
-                            "value": 0,
-                            "color": "green"
-                          },
-                          {
-                            "value": 80,
-                            "color": "red"
-                          }
-                        ]
-                      },
                       "color": {
                         "mode": "palette-classic"
                       },
@@ -248,21 +219,50 @@ data:
                         "thresholdsStyle": {
                           "mode": "off"
                         }
+                      },
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "red",
+                            "value": 80
+                          }
+                        ]
                       }
                     },
                     "overrides": []
+                  },
+                  "options": {
+                    "annotations": {
+                      "clustering": -1,
+                      "multiLane": false
+                    },
+                    "legend": {
+                      "calcs": [],
+                      "displayMode": "list",
+                      "enableFacetedFilter": false,
+                      "overflow": "ellipsis",
+                      "placement": "bottom",
+                      "showLegend": true
+                    },
+                    "tooltip": {
+                      "hideZeros": false,
+                      "mode": "single",
+                      "sort": "none"
+                    }
                   }
-                }
+                },
+                "version": "13.1.1"
               }
             }
           },
           "panel-3": {
             "kind": "Panel",
             "spec": {
-              "id": 3,
-              "title": "Requests by Route",
-              "description": "",
-              "links": [],
               "data": {
                 "kind": "QueryGroup",
                 "spec": {
@@ -270,68 +270,39 @@ data:
                     {
                       "kind": "PanelQuery",
                       "spec": {
+                        "hidden": false,
                         "query": {
-                          "kind": "DataQuery",
-                          "group": "prometheus",
-                          "version": "v0",
                           "datasource": {
                             "name": "prometheus"
                           },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
                           "spec": {
                             "editorMode": "code",
                             "expr": "sum by (route) (\n  rate(app_http_requests_total{\n    namespace=\"platform-lab\",\n    job=\"app\"\n  }[5m])\n)",
                             "legendFormat": "{{route}}",
                             "range": true
-                          }
+                          },
+                          "version": "v0"
                         },
-                        "refId": "A",
-                        "hidden": false
+                        "refId": "A"
                       }
                     }
                   ],
-                  "transformations": [],
-                  "queryOptions": {}
+                  "queryOptions": {},
+                  "transformations": []
                 }
               },
+              "description": "",
+              "id": 3,
+              "links": [],
+              "title": "Requests by Route",
               "vizConfig": {
-                "kind": "VizConfig",
                 "group": "timeseries",
-                "version": "13.1.1",
+                "kind": "VizConfig",
                 "spec": {
-                  "options": {
-                    "annotations": {
-                      "clustering": -1,
-                      "multiLane": false
-                    },
-                    "legend": {
-                      "calcs": [],
-                      "displayMode": "list",
-                      "enableFacetedFilter": false,
-                      "overflow": "ellipsis",
-                      "placement": "bottom",
-                      "showLegend": true
-                    },
-                    "tooltip": {
-                      "hideZeros": false,
-                      "mode": "single",
-                      "sort": "none"
-                    }
-                  },
                   "fieldConfig": {
                     "defaults": {
-                      "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                          {
-                            "value": 0,
-                            "color": "green"
-                          },
-                          {
-                            "value": 80,
-                            "color": "red"
-                          }
-                        ]
-                      },
                       "color": {
                         "mode": "palette-classic"
                       },
@@ -368,21 +339,50 @@ data:
                         "thresholdsStyle": {
                           "mode": "off"
                         }
+                      },
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "red",
+                            "value": 80
+                          }
+                        ]
                       }
                     },
                     "overrides": []
+                  },
+                  "options": {
+                    "annotations": {
+                      "clustering": -1,
+                      "multiLane": false
+                    },
+                    "legend": {
+                      "calcs": [],
+                      "displayMode": "list",
+                      "enableFacetedFilter": false,
+                      "overflow": "ellipsis",
+                      "placement": "bottom",
+                      "showLegend": true
+                    },
+                    "tooltip": {
+                      "hideZeros": false,
+                      "mode": "single",
+                      "sort": "none"
+                    }
                   }
-                }
+                },
+                "version": "13.1.1"
               }
             }
           },
           "panel-4": {
             "kind": "Panel",
             "spec": {
-              "id": 4,
-              "title": "CPU Usage by Pod",
-              "description": "",
-              "links": [],
               "data": {
                 "kind": "QueryGroup",
                 "spec": {
@@ -390,70 +390,39 @@ data:
                     {
                       "kind": "PanelQuery",
                       "spec": {
+                        "hidden": false,
                         "query": {
-                          "kind": "DataQuery",
-                          "group": "prometheus",
-                          "version": "v0",
                           "datasource": {
                             "name": "prometheus"
                           },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
                           "spec": {
                             "editorMode": "code",
                             "expr": "sum by (pod) (\n  rate(process_cpu_seconds_total{\n    namespace=\"platform-lab\",\n    job=\"app\"\n  }[5m])\n)",
                             "legendFormat": "{{pod}}",
                             "range": true
-                          }
+                          },
+                          "version": "v0"
                         },
-                        "refId": "A",
-                        "hidden": false
+                        "refId": "A"
                       }
                     }
                   ],
-                  "transformations": [],
-                  "queryOptions": {}
+                  "queryOptions": {},
+                  "transformations": []
                 }
               },
+              "description": "",
+              "id": 4,
+              "links": [],
+              "title": "CPU Usage by Pod",
               "vizConfig": {
-                "kind": "VizConfig",
                 "group": "timeseries",
-                "version": "13.1.1",
+                "kind": "VizConfig",
                 "spec": {
-                  "options": {
-                    "annotations": {
-                      "clustering": -1,
-                      "multiLane": false
-                    },
-                    "legend": {
-                      "calcs": [],
-                      "displayMode": "list",
-                      "enableFacetedFilter": false,
-                      "overflow": "ellipsis",
-                      "placement": "bottom",
-                      "showLegend": true
-                    },
-                    "tooltip": {
-                      "hideZeros": false,
-                      "mode": "single",
-                      "sort": "none"
-                    }
-                  },
                   "fieldConfig": {
                     "defaults": {
-                      "unit": "Cores",
-                      "min": 0,
-                      "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                          {
-                            "value": 0,
-                            "color": "green"
-                          },
-                          {
-                            "value": 80,
-                            "color": "red"
-                          }
-                        ]
-                      },
                       "color": {
                         "mode": "palette-classic"
                       },
@@ -490,21 +459,52 @@ data:
                         "thresholdsStyle": {
                           "mode": "off"
                         }
-                      }
+                      },
+                      "min": 0,
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "red",
+                            "value": 80
+                          }
+                        ]
+                      },
+                      "unit": "Cores"
                     },
                     "overrides": []
+                  },
+                  "options": {
+                    "annotations": {
+                      "clustering": -1,
+                      "multiLane": false
+                    },
+                    "legend": {
+                      "calcs": [],
+                      "displayMode": "list",
+                      "enableFacetedFilter": false,
+                      "overflow": "ellipsis",
+                      "placement": "bottom",
+                      "showLegend": true
+                    },
+                    "tooltip": {
+                      "hideZeros": false,
+                      "mode": "single",
+                      "sort": "none"
+                    }
                   }
-                }
+                },
+                "version": "13.1.1"
               }
             }
           },
           "panel-5": {
             "kind": "Panel",
             "spec": {
-              "id": 5,
-              "title": "Memory Usage by Pod",
-              "description": "",
-              "links": [],
               "data": {
                 "kind": "QueryGroup",
                 "spec": {
@@ -512,70 +512,39 @@ data:
                     {
                       "kind": "PanelQuery",
                       "spec": {
+                        "hidden": false,
                         "query": {
-                          "kind": "DataQuery",
-                          "group": "prometheus",
-                          "version": "v0",
                           "datasource": {
                             "name": "prometheus"
                           },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
                           "spec": {
                             "editorMode": "code",
                             "expr": "process_resident_memory_bytes{\n  namespace=\"platform-lab\",\n  job=\"app\"\n}",
                             "legendFormat": "{{pod}}",
                             "range": true
-                          }
+                          },
+                          "version": "v0"
                         },
-                        "refId": "A",
-                        "hidden": false
+                        "refId": "A"
                       }
                     }
                   ],
-                  "transformations": [],
-                  "queryOptions": {}
+                  "queryOptions": {},
+                  "transformations": []
                 }
               },
+              "description": "",
+              "id": 5,
+              "links": [],
+              "title": "Memory Usage by Pod",
               "vizConfig": {
-                "kind": "VizConfig",
                 "group": "timeseries",
-                "version": "13.1.1",
+                "kind": "VizConfig",
                 "spec": {
-                  "options": {
-                    "annotations": {
-                      "clustering": -1,
-                      "multiLane": false
-                    },
-                    "legend": {
-                      "calcs": [],
-                      "displayMode": "list",
-                      "enableFacetedFilter": false,
-                      "overflow": "ellipsis",
-                      "placement": "bottom",
-                      "showLegend": true
-                    },
-                    "tooltip": {
-                      "hideZeros": false,
-                      "mode": "single",
-                      "sort": "none"
-                    }
-                  },
                   "fieldConfig": {
                     "defaults": {
-                      "unit": "bytes",
-                      "min": 0,
-                      "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                          {
-                            "value": 0,
-                            "color": "green"
-                          },
-                          {
-                            "value": 80,
-                            "color": "red"
-                          }
-                        ]
-                      },
                       "color": {
                         "mode": "palette-classic"
                       },
@@ -613,21 +582,52 @@ data:
                           "mode": "off"
                         }
                       },
-                      "fieldMinMax": false
+                      "fieldMinMax": false,
+                      "min": 0,
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "red",
+                            "value": 80
+                          }
+                        ]
+                      },
+                      "unit": "bytes"
                     },
                     "overrides": []
+                  },
+                  "options": {
+                    "annotations": {
+                      "clustering": -1,
+                      "multiLane": false
+                    },
+                    "legend": {
+                      "calcs": [],
+                      "displayMode": "list",
+                      "enableFacetedFilter": false,
+                      "overflow": "ellipsis",
+                      "placement": "bottom",
+                      "showLegend": true
+                    },
+                    "tooltip": {
+                      "hideZeros": false,
+                      "mode": "single",
+                      "sort": "none"
+                    }
                   }
-                }
+                },
+                "version": "13.1.1"
               }
             }
           },
           "panel-6": {
             "kind": "Panel",
             "spec": {
-              "id": 6,
-              "title": "Node.js Event Loop Lag p99",
-              "description": "",
-              "links": [],
               "data": {
                 "kind": "QueryGroup",
                 "spec": {
@@ -635,70 +635,39 @@ data:
                     {
                       "kind": "PanelQuery",
                       "spec": {
+                        "hidden": false,
                         "query": {
-                          "kind": "DataQuery",
-                          "group": "prometheus",
-                          "version": "v0",
                           "datasource": {
                             "name": "prometheus"
                           },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
                           "spec": {
                             "editorMode": "code",
                             "expr": "nodejs_eventloop_lag_p99_seconds{\n  namespace=\"platform-lab\",\n  job=\"app\"\n}",
                             "legendFormat": "{{pod}}",
                             "range": true
-                          }
+                          },
+                          "version": "v0"
                         },
-                        "refId": "A",
-                        "hidden": false
+                        "refId": "A"
                       }
                     }
                   ],
-                  "transformations": [],
-                  "queryOptions": {}
+                  "queryOptions": {},
+                  "transformations": []
                 }
               },
+              "description": "",
+              "id": 6,
+              "links": [],
+              "title": "Node.js Event Loop Lag p99",
               "vizConfig": {
-                "kind": "VizConfig",
                 "group": "timeseries",
-                "version": "13.1.1",
+                "kind": "VizConfig",
                 "spec": {
-                  "options": {
-                    "annotations": {
-                      "clustering": -1,
-                      "multiLane": false
-                    },
-                    "legend": {
-                      "calcs": [],
-                      "displayMode": "list",
-                      "enableFacetedFilter": false,
-                      "overflow": "ellipsis",
-                      "placement": "bottom",
-                      "showLegend": true
-                    },
-                    "tooltip": {
-                      "hideZeros": false,
-                      "mode": "single",
-                      "sort": "none"
-                    }
-                  },
                   "fieldConfig": {
                     "defaults": {
-                      "unit": "s",
-                      "min": 0,
-                      "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                          {
-                            "value": 0,
-                            "color": "green"
-                          },
-                          {
-                            "value": 80,
-                            "color": "red"
-                          }
-                        ]
-                      },
                       "color": {
                         "mode": "palette-classic"
                       },
@@ -735,11 +704,394 @@ data:
                         "thresholdsStyle": {
                           "mode": "off"
                         }
-                      }
+                      },
+                      "min": 0,
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "red",
+                            "value": 80
+                          }
+                        ]
+                      },
+                      "unit": "s"
                     },
                     "overrides": []
+                  },
+                  "options": {
+                    "annotations": {
+                      "clustering": -1,
+                      "multiLane": false
+                    },
+                    "legend": {
+                      "calcs": [],
+                      "displayMode": "list",
+                      "enableFacetedFilter": false,
+                      "overflow": "ellipsis",
+                      "placement": "bottom",
+                      "showLegend": true
+                    },
+                    "tooltip": {
+                      "hideZeros": false,
+                      "mode": "single",
+                      "sort": "none"
+                    }
                   }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-7": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "expr": "100 *\nsum(\n  rate(app_http_requests_total{\n    namespace=\"platform-lab\",\n    job=\"app\",\n    route!~\"/health|/metrics\",\n    status_code=~\"5..\"\n  }[5m])\n)\n/\nclamp_min(\n  sum(\n    rate(app_http_requests_total{\n      namespace=\"platform-lab\",\n      job=\"app\",\n      route!~\"/health|/metrics\"\n    }[5m])\n  ),\n  0.000001\n)",
+                            "legendFormat": "__auto",
+                            "range": true
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
                 }
+              },
+              "description": "",
+              "id": 7,
+              "links": [],
+              "title": "Application Error Rate (%)",
+              "vizConfig": {
+                "group": "timeseries",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "continuous-BlYlRd",
+                        "seriesBy": "last"
+                      },
+                      "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.6,
+                        "drawStyle": "line",
+                        "fillOpacity": 19,
+                        "gradientMode": "scheme",
+                        "hideFrom": {
+                          "legend": false,
+                          "tooltip": false,
+                          "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "smooth",
+                        "lineStyle": {
+                          "fill": "solid"
+                        },
+                        "lineWidth": 2,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                          "type": "linear"
+                        },
+                        "showPoints": "never",
+                        "showValues": false,
+                        "spanNulls": false,
+                        "stacking": {
+                          "group": "A",
+                          "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                          "mode": "off"
+                        }
+                      },
+                      "max": 100,
+                      "min": 0,
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "#EAB839",
+                            "value": 1
+                          },
+                          {
+                            "color": "red",
+                            "value": 5
+                          }
+                        ]
+                      },
+                      "unit": "percent"
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "annotations": {
+                      "clustering": -1,
+                      "multiLane": false
+                    },
+                    "legend": {
+                      "calcs": [],
+                      "displayMode": "list",
+                      "enableFacetedFilter": false,
+                      "overflow": "ellipsis",
+                      "placement": "bottom",
+                      "showLegend": true
+                    },
+                    "tooltip": {
+                      "hideZeros": false,
+                      "mode": "single",
+                      "sort": "none"
+                    }
+                  }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-8": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "expr": "histogram_quantile(\n  0.95,\n  sum by (le, route) (\n    rate(app_http_request_duration_seconds_bucket{\n      namespace=\"platform-lab\",\n      job=\"app\",\n      route!~\"/health|/metrics\"\n    }[5m])\n  )\n)",
+                            "legendFormat": "{{route}}",
+                            "range": true
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
+                }
+              },
+              "description": "",
+              "id": 8,
+              "links": [],
+              "title": "p95 Response Time by Route",
+              "vizConfig": {
+                "group": "timeseries",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "palette-classic",
+                        "seriesBy": "max"
+                      },
+                      "custom": {
+                        "axisBorderShow": false,
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "barWidthFactor": 0.9,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                          "legend": false,
+                          "tooltip": false,
+                          "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineStyle": {
+                          "fill": "solid"
+                        },
+                        "lineWidth": 1,
+                        "pointSize": 1,
+                        "scaleDistribution": {
+                          "type": "linear"
+                        },
+                        "showPoints": "always",
+                        "showValues": false,
+                        "spanNulls": false,
+                        "stacking": {
+                          "group": "A",
+                          "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                          "mode": "off"
+                        }
+                      },
+                      "min": 0,
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "red",
+                            "value": 80
+                          }
+                        ]
+                      },
+                      "unit": "s"
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "annotations": {
+                      "clustering": -1,
+                      "multiLane": false
+                    },
+                    "legend": {
+                      "calcs": [],
+                      "displayMode": "list",
+                      "enableFacetedFilter": false,
+                      "overflow": "ellipsis",
+                      "placement": "bottom",
+                      "showLegend": true
+                    },
+                    "tooltip": {
+                      "hideZeros": false,
+                      "mode": "single",
+                      "sort": "none"
+                    }
+                  }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-9": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "expr": "histogram_quantile(\n  0.95,\n  sum by (le) (\n    rate(app_http_request_duration_seconds_bucket{\n      namespace=\"platform-lab\",\n      job=\"app\",\n      route!~\"/health|/metrics\"\n    }[$__rate_interval])\n  )\n)",
+                            "legendFormat": "__auto",
+                            "range": true
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
+                }
+              },
+              "description": "",
+              "id": 9,
+              "links": [],
+              "title": "Current p95 Response Time",
+              "vizConfig": {
+                "group": "stat",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "thresholds"
+                      },
+                      "decimals": 2,
+                      "min": 0,
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "green",
+                            "value": 0
+                          },
+                          {
+                            "color": "#EAB839",
+                            "value": 0.5
+                          },
+                          {
+                            "color": "red",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      "unit": "s"
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto",
+                    "orientation": "auto",
+                    "percentChangeColorMode": "standard",
+                    "reduceOptions": {
+                      "calcs": [
+                        "lastNotNull"
+                      ],
+                      "fields": "",
+                      "values": false
+                    },
+                    "showPercentChange": false,
+                    "textMode": "auto",
+                    "wideLayout": true
+                  }
+                },
+                "version": "13.1.1"
               }
             }
           }
@@ -751,79 +1103,118 @@ data:
               {
                 "kind": "GridLayoutItem",
                 "spec": {
-                  "x": 0,
-                  "y": 0,
-                  "width": 24,
-                  "height": 8,
                   "element": {
                     "kind": "ElementReference",
                     "name": "panel-1"
-                  }
+                  },
+                  "height": 8,
+                  "width": 12,
+                  "x": 0,
+                  "y": 0
                 }
               },
               {
                 "kind": "GridLayoutItem",
                 "spec": {
-                  "x": 0,
-                  "y": 8,
-                  "width": 12,
-                  "height": 8,
                   "element": {
                     "kind": "ElementReference",
-                    "name": "panel-2"
-                  }
+                    "name": "panel-9"
+                  },
+                  "height": 8,
+                  "width": 12,
+                  "x": 12,
+                  "y": 0
                 }
               },
               {
                 "kind": "GridLayoutItem",
                 "spec": {
-                  "x": 12,
-                  "y": 8,
-                  "width": 12,
-                  "height": 8,
                   "element": {
                     "kind": "ElementReference",
                     "name": "panel-3"
-                  }
+                  },
+                  "height": 8,
+                  "width": 12,
+                  "x": 0,
+                  "y": 8
                 }
               },
               {
                 "kind": "GridLayoutItem",
                 "spec": {
-                  "x": 0,
-                  "y": 16,
-                  "width": 12,
+                  "element": {
+                    "kind": "ElementReference",
+                    "name": "panel-8"
+                  },
                   "height": 8,
+                  "width": 12,
+                  "x": 12,
+                  "y": 8
+                }
+              },
+              {
+                "kind": "GridLayoutItem",
+                "spec": {
+                  "element": {
+                    "kind": "ElementReference",
+                    "name": "panel-2"
+                  },
+                  "height": 8,
+                  "width": 12,
+                  "x": 0,
+                  "y": 16
+                }
+              },
+              {
+                "kind": "GridLayoutItem",
+                "spec": {
+                  "element": {
+                    "kind": "ElementReference",
+                    "name": "panel-7"
+                  },
+                  "height": 8,
+                  "width": 12,
+                  "x": 12,
+                  "y": 16
+                }
+              },
+              {
+                "kind": "GridLayoutItem",
+                "spec": {
                   "element": {
                     "kind": "ElementReference",
                     "name": "panel-4"
-                  }
+                  },
+                  "height": 8,
+                  "width": 12,
+                  "x": 0,
+                  "y": 24
                 }
               },
               {
                 "kind": "GridLayoutItem",
                 "spec": {
-                  "x": 12,
-                  "y": 16,
-                  "width": 12,
-                  "height": 8,
                   "element": {
                     "kind": "ElementReference",
                     "name": "panel-5"
-                  }
+                  },
+                  "height": 8,
+                  "width": 12,
+                  "x": 12,
+                  "y": 24
                 }
               },
               {
                 "kind": "GridLayoutItem",
                 "spec": {
-                  "x": 0,
-                  "y": 24,
-                  "width": 24,
-                  "height": 8,
                   "element": {
                     "kind": "ElementReference",
                     "name": "panel-6"
-                  }
+                  },
+                  "height": 8,
+                  "width": 24,
+                  "x": 0,
+                  "y": 32
                 }
               }
             ]
@@ -831,12 +1222,17 @@ data:
         },
         "links": [],
         "liveNow": false,
+        "preferences": {
+          "layout": {
+            "kind": "GridLayout",
+            "spec": {
+              "items": []
+            }
+          }
+        },
         "preload": false,
         "tags": [],
         "timeSettings": {
-          "timezone": "browser",
-          "from": "now-6h",
-          "to": "now",
           "autoRefresh": "",
           "autoRefreshIntervals": [
             "5s",
@@ -850,19 +1246,14 @@ data:
             "2h",
             "1d"
           ],
+          "fiscalYearStartMonth": 0,
+          "from": "now-6h",
           "hideTimepicker": false,
-          "fiscalYearStartMonth": 0
+          "timezone": "browser",
+          "to": "now"
         },
         "title": "Platform App Overview",
-        "variables": [],
-        "preferences": {
-          "layout": {
-            "kind": "GridLayout",
-            "spec": {
-              "items": []
-            }
-          }
-        }
+        "variables": []
       }
     }
 kind: ConfigMap

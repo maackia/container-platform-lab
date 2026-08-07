@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: app
-          image: ghcr.io/maackia/container-platform-lab-app:0.1.0
+          image: ghcr.io/maackia/container-platform-lab-app:0.2.0
           imagePullPolicy: IfNotPresent
           
           envFrom:
