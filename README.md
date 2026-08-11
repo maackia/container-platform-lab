@@ -66,6 +66,7 @@ GitHub Actions
 4. GHCR 이미지를 K3s에 배포
 5. Kubernetes 모니터링·경고·Ingress 구성
 6. 별도 블로그 이미지를 K3s에 배포하고 모니터링
+7. 배포 스크립트로 블로그 `latest` 이미지 갱신
 ```
 
 Docker Compose 실습과 K3s 실습은 서로 다른 실행 경로다. K3s 배포만 확인하려면 Compose 실행을 생략할 수 있다.
@@ -74,7 +75,7 @@ Docker Compose 실습과 K3s 실습은 서로 다른 실행 경로다. K3s 배�
 |---|---|---|---|
 | 로컬 Compose | `app/Dockerfile`에서 직접 빌드 | `.env` | `make up` |
 | GHCR Compose | GHCR에 게시된 이미지 pull | `.env`, `APP_IMAGE_TAG` | `docker compose -f ...` |
-| K3s | GHCR에 게시된 이미지 pull | ConfigMap, Secret | `kubectl apply` |
+| K3s | GHCR에 게시된 이미지 pull | ConfigMap, Secret | `kubectl apply`, `make deploy-blog` |
 
 ## 실행 경로 1: 로컬 Docker Compose
 
@@ -140,7 +141,7 @@ linux/arm64
 
 ## 실행 경로 3: K3s 배포
 
-K3s는 Compose와 독립된 실행 환경입니다. `Makefile`과 `.env`를 사용하지 않으며 일반 설정은 ConfigMap, 비밀번호는 Kubernetes Secret으로 주입합니다. 애플리케이션 Deployment는 GHCR의 멀티 아키텍처 이미지를 pull합니다.
+K3s는 Compose와 독립된 실행 환경입니다. `.env`를 사용하지 않으며 일반 설정은 ConfigMap, 비밀번호는 Kubernetes Secret으로 주입합니다. 애플리케이션 Deployment는 GHCR의 멀티 아키텍처 이미지를 pull합니다. `Makefile`의 `deploy-blog` 타깃은 반복되는 블로그 rollout 명령을 실행하는 편의 기능으로만 사용합니다.
 
 K3s와 `platform-secret`을 준비한 뒤 기본 애플리케이션 매니페스트를 적용합니다. `k8s/monitoring/`과 블로그의 모니터링 리소스는 `kube-prometheus-stack` 설치 후 적용합니다.
 
@@ -159,6 +160,14 @@ kubectl apply -f k8s/blog/02-blog-service.yaml
 kubectl apply -f k8s/blog/03-blog-ingress.yaml
 kubectl get pods,service,ingress -n blog
 ```
+
+블로그 저장소에서 새 `latest` 이미지가 게시된 뒤에는 다음 명령으로 블로그 Deployment만 갱신합니다.
+
+```bash
+make deploy-blog
+```
+
+이 명령은 현재 Kubernetes context와 Deployment를 확인하고, rollout을 재시작한 뒤 새 Pod가 준비될 때까지 기다립니다. 실패하면 Pod와 Deployment 진단 정보를 출력합니다.
 
 배포 경로는 다음과 같습니다.
 
@@ -240,7 +249,7 @@ Alertmanager: http://alertmanager.platform.local:8081
 - PostgreSQL StatefulSet와 local-path PVC
 - Traefik Ingress와 readiness/liveness probe
 - GHCR `latest` 기반 Next.js 블로그 Deployment·Service·Ingress
-- 블로그 startup/readiness/liveness probe와 수동 rollout 갱신
+- 블로그 startup/readiness/liveness probe와 `make deploy-blog` 기반 rollout 자동화
 - Helm 기반 kube-prometheus-stack 구성
 - ServiceMonitor 기반 애플리케이션 target 자동 발견
 - Grafana ConfigMap 기반 대시보드 provisioning
@@ -293,6 +302,8 @@ Alertmanager: http://alertmanager.platform.local:8081
 │       └── 13-monitoring-ingress.yaml
 ├── monitoring
 ├── nginx
+├── scripts
+│   └── deploy-blog.sh
 ├── compose.yaml
 ├── compose.prod.yaml
 ├── Makefile
@@ -332,6 +343,7 @@ Docker Compose 스택
 → Kubernetes·Helm 매니페스트 CI 검증
 → Next.js 블로그 K3s 배포
 → 블로그 ServiceMonitor와 Grafana 대시보드 provisioning
+→ 블로그 `latest` 이미지 rollout 자동화와 CI 스크립트 검증
 ```
 
 .env, backups/, 실제 Secret 값은 Git에 포함하지 않습니다.

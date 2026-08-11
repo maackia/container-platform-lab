@@ -180,3 +180,32 @@ docker compose down -v
 컨테이너, 네트워크, named volume을 함께 삭제합니다.
 
 이 명령을 실행하면 DB 데이터가 초기화됩니다.
+
+## K3s 블로그 갱신
+
+블로그 저장소에서 새 `latest` 이미지가 게시된 뒤 K3s의 블로그 Deployment를 갱신합니다.
+
+```bash
+make deploy-blog
+```
+
+이 명령은 `scripts/deploy-blog.sh`를 실행해 다음 순서로 동작합니다.
+
+```text
+현재 Kubernetes context 확인
+→ blog Deployment 존재 확인
+→ rollout restart
+→ 새 Pod의 Ready 상태 대기
+→ Pod 상태 출력
+```
+
+기본 namespace, Deployment, 제한 시간은 환경변수로 바꿀 수 있습니다.
+
+```bash
+BLOG_NAMESPACE=blog \
+BLOG_DEPLOYMENT=blog \
+BLOG_ROLLOUT_TIMEOUT=300s \
+make deploy-blog
+```
+
+블로그 매니페스트와 이미지 갱신 방식은 [Next.js 블로그 K3s 배포와 모니터링](./10-blog-k3s.md)에 정리합니다.
