@@ -1,6 +1,6 @@
 # Kubernetes 모니터링과 알림
 
-이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션의 메트릭을 수집·시각화하며 replica 장애를 경고로 전달한 과정을 정리한다.
+이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션과 `blog` 서비스의 메트릭을 수집·시각화하며 replica 장애를 경고로 전달한 과정을 정리한다.
 
 구성 범위는 다음과 같다.
 
@@ -133,6 +133,8 @@ chart 설치로 `monitoring.coreos.com` CRD와 `monitoring` namespace가 준비�
 
 ```bash
 kubectl apply -f k8s/monitoring/
+kubectl apply -f k8s/blog/04-blog-servicemonitor.yaml
+kubectl apply -f k8s/blog/05-blog-dashboard-configmap.yaml
 ```
 
 이 순서를 지키면 새 K3s 클러스터에서도 ServiceMonitor의 API를 찾지 못하거나 Grafana Dashboard ConfigMap의 namespace가 없어서 배포가 중단되는 일을 피할 수 있다.
@@ -145,6 +147,7 @@ Prometheus Operator는 `Prometheus`, `ServiceMonitor`, `PrometheusRule` 같은 C
 
 ```text
 k8s/monitoring/10-app-servicemonitor.yaml
+k8s/blog/04-blog-servicemonitor.yaml
 ```
 
 주요 설정은 다음과 같다.
@@ -176,14 +179,22 @@ ServiceMonitor selector: app=platform-app
 
 ServiceMonitor의 selector는 Pod가 아니라 Service의 `metadata.labels`를 찾는다. Service가 선택된 뒤 Service selector와 EndpointSlice를 통해 실제 Pod 주소가 target으로 등록된다.
 
+블로그도 같은 방식으로 `app=blog` Service를 선택하고 `/metrics`를 수집한다.
+
 상태를 확인한다.
 
 ```bash
 kubectl get servicemonitor app -n platform-lab
+kubectl get servicemonitor blog -n blog
 kubectl get service app -n platform-lab --show-labels
+kubectl get service blog -n blog --show-labels
 kubectl get endpointslice \
   -n platform-lab \
   -l kubernetes.io/service-name=app
+
+kubectl get endpointslice \
+  -n blog \
+  -l kubernetes.io/service-name=blog
 ```
 
 ## 6. Prometheus 접속과 쿼리
@@ -201,16 +212,27 @@ curl --noproxy '*' -fsS \
   http://prometheus.platform.local:8081/-/ready
 ```
 
-Prometheus의 Target health에서 다음 scrape pool이 `2/2 UP`이면 애플리케이션 replica 두 개를 모두 수집하는 상태다.
+Prometheus의 Target health에서 다음 두 scrape pool이 각각 `2/2 UP`이면 데모 앱과 블로그 replica를 모두 수집하는 상태다.
 
 ```text
 serviceMonitor/platform-lab/app/0
+serviceMonitor/blog/blog/0
 ```
 
 기본 확인 쿼리:
 
 ```promql
 up{namespace="platform-lab", job="app"}
+```
+
+블로그 target과 게시글 메트릭은 다음으로 확인한다.
+
+```promql
+up{namespace="blog"}
+```
+
+```promql
+max(blog_published_posts{namespace="blog"})
 ```
 
 ```promql
@@ -304,10 +326,12 @@ histogram_quantile(
       namespace="platform-lab",
       job="app",
       route!~"/health|/metrics"
-    }[$__rate_interval])
+    }[5m])
   )
 )
 ```
+
+Prometheus Query UI에서는 고정 range selector인 `[5m]`을 사용한다. Grafana 대시보드에서는 패널의 시간 범위와 scrape 주기에 맞게 `$__rate_interval`로 바꿔 사용할 수 있다.
 
 Histogram 기반 p95는 선택한 시간 범위의 표본으로 계산한 추정값이다. 요청이 없으면 그래프가 비어 있을 수 있으므로 `/`, `/slow`, `/error` 트래픽을 발생시킨 뒤 확인한다.
 
@@ -329,7 +353,7 @@ kubectl get secret monitoring-grafana \
 echo
 ```
 
-대시보드 이름은 `Platform App Overview`이며 다음 항목을 표시한다.
+기본 애플리케이션 대시보드 이름은 `Platform App Overview`이며 다음 항목을 표시한다.
 
 | 패널 | 의미 |
 |---|---|
@@ -351,7 +375,10 @@ echo
 
 ```text
 grafana/dashboards/platform-app-overview.json
+grafana/dashboards/blog-overview.json
 ```
+
+`Blog Overview`는 블로그 target 수, 게시글 수, Pod별 CPU·메모리, Node.js event loop 지연과 재시작 횟수를 표시한다. 블로그 배포와 대시보드 재생성 절차는 [Next.js 블로그 K3s 배포와 모니터링](./10-blog-k3s.md)에 정리한다.
 
 ## 8. 대시보드 자동 provisioning
 
@@ -359,6 +386,7 @@ Grafana UI에서 만든 대시보드를 Kubernetes ConfigMap으로 감싸고, Gr
 
 ```text
 k8s/monitoring/11-platform-app-dashboard-configmap.yaml
+k8s/blog/05-blog-dashboard-configmap.yaml
 ```
 
 ConfigMap 바깥쪽 `metadata.labels`에 다음 라벨이 있어야 sidecar의 검색 대상이 된다.
@@ -602,7 +630,7 @@ KUBE_PROMETHEUS_STACK_VERSION: 87.19.0
 
 ```text
 Grafana Dashboard v2 JSON 확인
-→ 기본·모니터링 매니페스트 Kubeconform 검사
+→ 기본·모니터링·블로그 매니페스트 Kubeconform 검사
 → Helm chart pull
 → helm lint
 → helm template
@@ -616,9 +644,11 @@ Prometheus Operator CRD처럼 기본 Kubernetes 스키마 저장소에 없는 �
 ```bash
 kubectl apply --dry-run=server -f k8s/
 kubectl apply --dry-run=server -f k8s/monitoring/
+kubectl apply --dry-run=server -f k8s/blog/04-blog-servicemonitor.yaml
+kubectl apply --dry-run=server -f k8s/blog/05-blog-dashboard-configmap.yaml
 ```
 
-두 번째 명령은 `kube-prometheus-stack` 설치 후 실행해야 ServiceMonitor CRD와 `monitoring` namespace를 기준으로 검사할 수 있다.
+후속 모니터링 명령은 `kube-prometheus-stack` 설치 후 실행해야 ServiceMonitor CRD와 `monitoring` namespace를 기준으로 검사할 수 있다.
 
 두 검사는 서로 대체 관계가 아니다.
 
@@ -728,9 +758,11 @@ kube-prometheus-stack 설치
 → Prometheus Operator와 CRD 구성
 → ServiceMonitor 기반 앱 메트릭 수집
 → 앱 replica 2개 target 확인
+→ 블로그 replica 2개 target 및 게시글 메트릭 확인
 → 애플리케이션 v0.2.0 배포
 → RED 요청률·오류율·p95 쿼리 검증
 → Grafana RED·Pod 리소스 대시보드 구성
+→ Blog Overview 대시보드 구성
 → ConfigMap 기반 대시보드 provisioning
 → PrometheusRule 기반 replica 경고
 → Alertmanager Pending·Firing·Resolved 검증
