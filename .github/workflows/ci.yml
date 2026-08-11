@@ -31,7 +31,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Validate Grafana dashboard resource
+      - name: Validate Grafana dashboard resources
         run: |
           jq -e '
             .apiVersion == "dashboard.grafana.app/v2" and
@@ -39,6 +39,13 @@ jobs:
             (.metadata.name | length > 0) and
             .spec.title == "Platform App Overview"
           ' grafana/dashboards/platform-app-overview.json
+
+          jq -e '
+            .apiVersion == "dashboard.grafana.app/v2" and
+            .kind == "Dashboard" and
+            (.metadata.name | length > 0) and
+            .spec.title == "Blog Overview"
+          ' grafana/dashboards/blog-overview.json
 
       - name: Validate Kubernetes manifests
         run: |
@@ -50,7 +57,8 @@ jobs:
             -summary \
             -ignore-missing-schemas \
             k8s/*.yaml \
-            k8s/monitoring/*.yaml
+            k8s/monitoring/*.yaml \
+            k8s/blog/*.yaml
 
       - name: Set up Helm
         uses: azure/setup-helm@v5

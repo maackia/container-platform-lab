@@ -1,6 +1,6 @@
 # Container Platform Lab
 
-Docker Compose로 구성한 nginx, Node.js, PostgreSQL, Prometheus, Grafana 스택을 CI/CD와 버전 기반 배포까지 확장하고, 동일한 애플리케이션을 K3s에 배포해 Kubernetes 리소스와 클러스터 모니터링을 학습하는 실습 저장소입니다.
+Docker Compose로 구성한 nginx, Node.js, PostgreSQL, Prometheus, Grafana 스택을 CI/CD와 버전 기반 배포까지 확장하고, 데모 애플리케이션과 별도 Next.js 블로그를 K3s에 배포해 Kubernetes 리소스와 클러스터 모니터링을 학습하는 실습 저장소입니다.
 
 ## 아키텍처
 
@@ -18,10 +18,8 @@ Node.js /metrics
 K3s application
 Client
 → Traefik Ingress
-→ app Service
-→ Node.js Deployment
-→ db Service
-→ PostgreSQL StatefulSet / PVC
+├→ app.platform.local → Node.js Deployment → PostgreSQL StatefulSet / PVC
+└→ blog.platform.local → Next.js Blog Deployment
 
 K3s monitoring
 Node.js Pod /metrics
@@ -34,7 +32,7 @@ Node.js Pod /metrics
 Mac browser
 → UTM host 8081 / guest 80
 → Traefik Ingress
-→ app / Grafana / Prometheus / Alertmanager Service
+→ app / blog / Grafana / Prometheus / Alertmanager Service
 
 GitHub Actions
 → Compose integration test
@@ -67,6 +65,7 @@ GitHub Actions
 3. GitHub Actions와 GHCR 이미지 게시 확인
 4. GHCR 이미지를 K3s에 배포
 5. Kubernetes 모니터링·경고·Ingress 구성
+6. 별도 블로그 이미지를 K3s에 배포하고 모니터링
 ```
 
 Docker Compose 실습과 K3s 실습은 서로 다른 실행 경로다. K3s 배포만 확인하려면 Compose 실행을 생략할 수 있다.
@@ -143,12 +142,22 @@ linux/arm64
 
 K3s는 Compose와 독립된 실행 환경입니다. `Makefile`과 `.env`를 사용하지 않으며 일반 설정은 ConfigMap, 비밀번호는 Kubernetes Secret으로 주입합니다. 애플리케이션 Deployment는 GHCR의 멀티 아키텍처 이미지를 pull합니다.
 
-K3s와 `platform-secret`을 준비한 뒤 기본 애플리케이션 매니페스트를 적용합니다. `k8s/monitoring/`은 모니터링 스택 설치 후 별도로 적용합니다.
+K3s와 `platform-secret`을 준비한 뒤 기본 애플리케이션 매니페스트를 적용합니다. `k8s/monitoring/`과 블로그의 모니터링 리소스는 `kube-prometheus-stack` 설치 후 적용합니다.
 
 ```bash
 kubectl apply -f k8s/
 kubectl get all -n platform-lab
 kubectl get ingress,pvc -n platform-lab
+```
+
+블로그의 기본 리소스는 모니터링 의존 리소스와 분리해 순서대로 적용합니다.
+
+```bash
+kubectl apply -f k8s/blog/00-namespace.yaml
+kubectl apply -f k8s/blog/01-blog-deployment.yaml
+kubectl apply -f k8s/blog/02-blog-service.yaml
+kubectl apply -f k8s/blog/03-blog-ingress.yaml
+kubectl get pods,service,ingress -n blog
 ```
 
 배포 경로는 다음과 같습니다.
@@ -159,9 +168,14 @@ app.platform.local
 → app Service
 → Node.js Pod
 → PostgreSQL StatefulSet
+
+blog.platform.local
+→ Traefik
+→ blog Service
+→ Next.js Blog Pod
 ```
 
-Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kubernetes 배포](./docs/08-k3s.md)에 정리합니다.
+Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kubernetes 배포](./docs/08-k3s.md)에, 블로그 배포·갱신 흐름은 [Next.js 블로그 K3s 배포와 모니터링](./docs/10-blog-k3s.md)에 정리합니다.
 
 `k8s/01-nginx-deployment.yaml`과 `02-nginx-service.yaml`은 Deployment·Service를 익히기 위한 별도 기초 실습입니다. 실제 애플리케이션 요청은 Traefik에서 `app` Service로 직접 전달됩니다.
 
@@ -180,7 +194,10 @@ helm upgrade --install monitoring \
   --timeout 15m
 
 kubectl apply -f k8s/monitoring/
+kubectl apply -f k8s/blog/04-blog-servicemonitor.yaml
+kubectl apply -f k8s/blog/05-blog-dashboard-configmap.yaml
 kubectl get servicemonitor app -n platform-lab
+kubectl get servicemonitor blog -n blog
 kubectl get prometheusrule platform-app-alerts -n platform-lab
 kubectl get pods -n monitoring
 ```
@@ -189,6 +206,7 @@ Mac의 `/etc/hosts`에 다음 항목을 추가하고, UTM에서 호스트 `8081`
 
 ```text
 127.0.0.1 app.platform.local
+127.0.0.1 blog.platform.local
 127.0.0.1 grafana.platform.local
 127.0.0.1 prometheus.platform.local
 127.0.0.1 alertmanager.platform.local
@@ -198,6 +216,7 @@ Mac의 `/etc/hosts`에 다음 항목을 추가하고, UTM에서 호스트 `8081`
 
 ```text
 Application:  http://app.platform.local:8081
+Blog:         http://blog.platform.local:8081
 Grafana:      http://grafana.platform.local:8081
 Prometheus:   http://prometheus.platform.local:8081
 Alertmanager: http://alertmanager.platform.local:8081
@@ -220,9 +239,12 @@ Alertmanager: http://alertmanager.platform.local:8081
 - K3s Namespace, Deployment, Service, ConfigMap, Secret 구성
 - PostgreSQL StatefulSet와 local-path PVC
 - Traefik Ingress와 readiness/liveness probe
+- GHCR `latest` 기반 Next.js 블로그 Deployment·Service·Ingress
+- 블로그 startup/readiness/liveness probe와 수동 rollout 갱신
 - Helm 기반 kube-prometheus-stack 구성
 - ServiceMonitor 기반 애플리케이션 target 자동 발견
 - Grafana ConfigMap 기반 대시보드 provisioning
+- 블로그 target·게시글·Pod 리소스 Grafana 대시보드
 - Grafana 기반 애플리케이션 RED·Pod 리소스 대시보드
 - PrometheusRule 기반 replica 저하·전체 중단 경고
 - Alertmanager 기반 활성 경고 확인
@@ -248,8 +270,10 @@ Alertmanager: http://alertmanager.platform.local:8081
 │   ├── 06-ci-cd.md
 │   ├── 07-production-compose.md
 │   ├── 08-k3s.md
-│   └── 09-kubernetes-monitoring.md
+│   ├── 09-kubernetes-monitoring.md
+│   └── 10-blog-k3s.md
 ├── grafana/dashboards
+│   ├── blog-overview.json
 │   └── platform-app-overview.json
 ├── helm
 │   └── kube-prometheus-stack-values.yaml
@@ -257,6 +281,11 @@ Alertmanager: http://alertmanager.platform.local:8081
 │   ├── 00-namespace.yaml
 │   ├── ...
 │   ├── 09-app-ingress.yaml
+│   ├── blog
+│   │   ├── 00-namespace.yaml
+│   │   ├── 01-blog-deployment.yaml
+│   │   ├── ...
+│   │   └── 05-blog-dashboard-configmap.yaml
 │   └── monitoring
 │       ├── 10-app-servicemonitor.yaml
 │       ├── 11-platform-app-dashboard-configmap.yaml
@@ -283,6 +312,7 @@ Alertmanager: http://alertmanager.platform.local:8081
 - [배포용 Compose와 버전 롤백](./docs/07-production-compose.md)
 - [K3s 기반 Kubernetes 배포](./docs/08-k3s.md)
 - [Kubernetes 모니터링과 알림](./docs/09-kubernetes-monitoring.md)
+- [Next.js 블로그 K3s 배포와 모니터링](./docs/10-blog-k3s.md)
 
 ## 현재 완료 범위
 
@@ -300,6 +330,8 @@ Docker Compose 스택
 → Grafana RED 대시보드 자동 provisioning
 → PrometheusRule과 Alertmanager 경고 검증
 → Kubernetes·Helm 매니페스트 CI 검증
+→ Next.js 블로그 K3s 배포
+→ 블로그 ServiceMonitor와 Grafana 대시보드 provisioning
 ```
 
 .env, backups/, 실제 Secret 값은 Git에 포함하지 않습니다.

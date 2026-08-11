@@ -266,7 +266,8 @@ docker run --rm \
   ghcr.io/yannh/kubeconform:v0.8.0 \
   -strict -summary -ignore-missing-schemas \
   k8s/*.yaml \
-  k8s/monitoring/*.yaml
+  k8s/monitoring/*.yaml \
+  k8s/blog/*.yaml
 ```
 
 옵션의 의미:
@@ -289,9 +290,18 @@ docker run --rm \
 ```bash
 kubectl apply --dry-run=server -f k8s/
 kubectl apply --dry-run=server -f k8s/monitoring/
+kubectl apply --dry-run=server -f k8s/blog/04-blog-servicemonitor.yaml
+kubectl apply --dry-run=server -f k8s/blog/05-blog-dashboard-configmap.yaml
 ```
 
-모니터링 디렉터리의 서버 측 검증은 `kube-prometheus-stack`을 설치해 CRD와 `monitoring` namespace를 준비한 뒤 실행한다.
+모니터링 디렉터리와 블로그의 ServiceMonitor·Dashboard ConfigMap 서버 측 검증은 `kube-prometheus-stack`을 설치해 CRD와 `monitoring` namespace를 준비한 뒤 실행한다.
+
+CI는 두 Grafana Dashboard v2 JSON의 기본 구조와 제목도 검사한다.
+
+```text
+grafana/dashboards/platform-app-overview.json → Platform App Overview
+grafana/dashboards/blog-overview.json → Blog Overview
+```
 
 Kubeconform은 빠른 정적 스키마 검사에 적합하고, 서버 측 dry-run은 현재 클러스터의 API와 admission 설정을 반영한다. 두 검사를 상호 보완적으로 사용한다.
 
@@ -307,4 +317,5 @@ amd64 / arm64 manifest 확인
 latest / SHA / SemVer 태그 생성
 v0.1.0 이미지 pull 검증
 Kubeconform v0.8.0 Kubernetes 매니페스트 검증
+블로그 매니페스트·Grafana 대시보드 검증
 ```

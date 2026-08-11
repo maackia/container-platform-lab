@@ -15,6 +15,7 @@
 7. [배포용 Compose와 버전 롤백](./07-production-compose.md)
 8. [K3s 기반 Kubernetes 배포](./08-k3s.md)
 9. [Kubernetes 모니터링과 알림](./09-kubernetes-monitoring.md)
+10. [Next.js 블로그 K3s 배포와 모니터링](./10-blog-k3s.md)
 
 ## 참고 예제
 
