@@ -102,8 +102,8 @@ jobs:
 
       - name: Validate deployment scripts
         run: |
-          test -x scripte/deploy-blog.sh
-          bash -n scripte/deploy-blog.sh
+          test -x scripts/deploy-blog.sh
+          bash -n scripts/deploy-blog.sh
           make -n deploy-blog
 
   test:
