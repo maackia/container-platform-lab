@@ -199,11 +199,12 @@ make deploy-blog
 → Pod 상태 출력
 ```
 
-기본 namespace, Deployment, 제한 시간은 환경변수로 바꿀 수 있습니다.
+기본 namespace, Deployment, 제한 시간은 환경변수로 바꿀 수 있습니다. Pod selector는 선택한 Deployment의 `spec.selector.matchLabels`에서 자동으로 가져오며, 필요하면 직접 지정할 수 있습니다.
 
 ```bash
 BLOG_NAMESPACE=blog \
 BLOG_DEPLOYMENT=blog \
+BLOG_POD_SELECTOR='app=blog' \
 BLOG_ROLLOUT_TIMEOUT=300s \
 make deploy-blog
 ```
