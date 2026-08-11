@@ -100,6 +100,12 @@ jobs:
             -ignore-missing-schemas \
             /work/kube-prometheus-stack-rendered.yaml
 
+      - name: Validate deployment scripts
+        run: |
+          test -x scripte/deploy-blog.sh
+          bash -n scripte/deploy-blog.sh
+          make -n deploy-blog
+
   test:
     name: Validate and test container stack
     runs-on: ubuntu-latest
