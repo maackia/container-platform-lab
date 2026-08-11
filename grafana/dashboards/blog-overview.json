@@ -67,7 +67,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(up{namespace=\"blog\"})",
+                        "expr": "sum(up{namespace=\"blog\"}) or vector(0)",
                         "legendFormat": "__auto",
                         "range": true
                       }
