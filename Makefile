@@ -1,4 +1,4 @@
-.PHONY: help up down restart ps logs app-logs nginx-logs db-logs db db-count db-recent backup restore reset clean
+.PHONY: help up down restart ps logs app-logs nginx-logs db-logs db db-count db-recent backup restore reset clean deploy-blog
 
 BACKUP_FILE ?= backups/appdb-data.sql
 
@@ -19,6 +19,7 @@ help:
 	@echo "  make restore     - BACKUP_FILE로 PostgreSQL 데이터 복구"
 	@echo "  make reset       - volume 포함 전체 초기화 후 재실행"
 	@echo "  make clean       - 컨테이너와 네트워크 삭제, volume 유지"
+	@echo "  make deploy-blog	- K3s 블로그를 latest 이미지로 재배포"
 
 up:
 	docker compose up -d --build
@@ -68,3 +69,6 @@ reset:
 
 clean:
 	docker compose down
+
+deploy-blog:
+	./scripts/deploy-blog.sh

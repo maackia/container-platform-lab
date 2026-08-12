@@ -250,7 +250,8 @@ K3s 매니페스트가 추가된 뒤 `ci.yml`에 별도의 `validate-kubernetes`
 ```text
 Pull Request / main push
 ├── validate-kubernetes
-│   └── Kubeconform
+│   ├── Kubeconform
+│   └── 배포 스크립트 정적 검증
 └── test
     └── Compose 통합 테스트
 ```
@@ -305,6 +306,16 @@ grafana/dashboards/blog-overview.json → Blog Overview
 
 Kubeconform은 빠른 정적 스키마 검사에 적합하고, 서버 측 dry-run은 현재 클러스터의 API와 admission 설정을 반영한다. 두 검사를 상호 보완적으로 사용한다.
 
+K3s 블로그 배포 스크립트는 실제 클러스터에 접속하지 않고 실행 권한, Bash 문법과 Makefile 연결을 검사한다.
+
+```bash
+test -x scripts/deploy-blog.sh
+bash -n scripts/deploy-blog.sh
+make -n deploy-blog
+```
+
+`make -n`은 명령을 출력만 하므로 GitHub-hosted Runner에서 실제 K3s rollout을 실행하지 않는다. 실제 배포 검증은 K3s에 접근 가능한 로컬 환경에서 `make deploy-blog`로 수행한다.
+
 ## 12. 완료 기준
 
 ```text
@@ -318,4 +329,5 @@ latest / SHA / SemVer 태그 생성
 v0.1.0 이미지 pull 검증
 Kubeconform v0.8.0 Kubernetes 매니페스트 검증
 블로그 매니페스트·Grafana 대시보드 검증
+블로그 배포 스크립트 문법·실행 권한·Makefile 연결 검증
 ```

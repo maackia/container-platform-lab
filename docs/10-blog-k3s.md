@@ -191,15 +191,52 @@ kubectl label --local \
   > k8s/blog/05-blog-dashboard-configmap.yaml
 ```
 
-## 7. `latest` 이미지 갱신
+## 7. `latest` 이미지 자동 갱신
 
 현재 실습은 `latest`와 `imagePullPolicy: Always`를 사용한다. `Always`는 Pod가 생성될 때 레지스트리의 이미지를 확인하지만, 실행 중인 Pod를 자동으로 교체하지는 않는다.
 
-`maackia/blog` main 변경의 GitHub Actions 이미지 게시가 완료된 뒤 Deployment를 재시작한다.
+`maackia/blog` main 변경의 GitHub Actions 이미지 게시가 완료된 뒤 저장소 루트에서 배포 명령을 실행한다.
+
+```bash
+make deploy-blog
+```
+
+`make deploy-blog`는 `scripts/deploy-blog.sh`를 호출해 다음 순서로 실행한다.
+
+```text
+현재 Kubernetes context 출력
+→ namespace의 Deployment 존재 확인
+→ rollout restart
+→ 제한 시간 동안 rollout status 대기
+→ 성공 시 새 Pod 상태 출력
+```
+
+rollout이 제한 시간 안에 끝나지 않으면 Pod 목록과 Deployment 상세 정보를 출력하고 실패 코드로 종료한다. 기본값은 다음과 같으며 필요하면 환경변수로 바꿀 수 있다.
+
+| 환경변수 | 기본값 | 의미 |
+|---|---|---|
+| `BLOG_NAMESPACE` | `blog` | Deployment가 있는 namespace |
+| `BLOG_DEPLOYMENT` | `blog` | 갱신할 Deployment 이름 |
+| `BLOG_POD_SELECTOR` | Deployment의 `matchLabels` | 완료 후 출력할 Pod selector |
+| `BLOG_ROLLOUT_TIMEOUT` | `10m` | rollout 완료 대기 시간 |
+
+```bash
+BLOG_ROLLOUT_TIMEOUT=15m make deploy-blog
+```
+
+기본적으로 선택한 Deployment의 `spec.selector.matchLabels`를 읽어 해당 Pod만 출력한다. `matchExpressions`처럼 자동 변환하기 어려운 selector를 사용한다면 직접 지정한다.
+
+```bash
+BLOG_DEPLOYMENT=custom-blog \
+BLOG_POD_SELECTOR='app=custom-blog,tier=frontend' \
+make deploy-blog
+```
+
+스크립트가 실행하는 핵심 Kubernetes 명령은 다음과 같다.
 
 ```bash
 kubectl rollout restart deployment/blog -n blog
-kubectl rollout status deployment/blog -n blog --timeout=5m
+kubectl rollout status deployment/blog -n blog --timeout=10m
 ```
 
 실제 이미지 digest를 확인한다.
@@ -224,6 +261,14 @@ docker run --rm \
   k8s/blog/*.yaml
 ```
 
+배포 스크립트의 실행 권한, Bash 문법과 Makefile 연결을 확인한다.
+
+```bash
+test -x scripts/deploy-blog.sh
+bash -n scripts/deploy-blog.sh
+make -n deploy-blog
+```
+
 실제 CRD와 API 기준 검증은 모니터링 chart 설치 후 서버 측 dry-run으로 보완한다.
 
 ```bash
@@ -243,4 +288,5 @@ Blog Pod 2개 Ready
 → Prometheus target 2/2 UP
 → Blog Overview 대시보드 provisioning
 → latest 이미지 rollout 갱신 검증
+→ make deploy-blog 자동화 검증
 ```
