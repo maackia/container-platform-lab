@@ -205,7 +205,7 @@ make deploy-blog
 BLOG_NAMESPACE=blog \
 BLOG_DEPLOYMENT=blog \
 BLOG_POD_SELECTOR='app=blog' \
-BLOG_ROLLOUT_TIMEOUT=300s \
+BLOG_ROLLOUT_TIMEOUT=15m \
 make deploy-blog
 ```
 

@@ -218,10 +218,10 @@ rollout이 제한 시간 안에 끝나지 않으면 Pod 목록과 Deployment 상
 | `BLOG_NAMESPACE` | `blog` | Deployment가 있는 namespace |
 | `BLOG_DEPLOYMENT` | `blog` | 갱신할 Deployment 이름 |
 | `BLOG_POD_SELECTOR` | Deployment의 `matchLabels` | 완료 후 출력할 Pod selector |
-| `BLOG_ROLLOUT_TIMEOUT` | `180s` | rollout 완료 대기 시간 |
+| `BLOG_ROLLOUT_TIMEOUT` | `10m` | rollout 완료 대기 시간 |
 
 ```bash
-BLOG_ROLLOUT_TIMEOUT=300s make deploy-blog
+BLOG_ROLLOUT_TIMEOUT=15m make deploy-blog
 ```
 
 기본적으로 선택한 Deployment의 `spec.selector.matchLabels`를 읽어 해당 Pod만 출력한다. `matchExpressions`처럼 자동 변환하기 어려운 selector를 사용한다면 직접 지정한다.
@@ -236,7 +236,7 @@ make deploy-blog
 
 ```bash
 kubectl rollout restart deployment/blog -n blog
-kubectl rollout status deployment/blog -n blog --timeout=180s
+kubectl rollout status deployment/blog -n blog --timeout=10m
 ```
 
 실제 이미지 digest를 확인한다.

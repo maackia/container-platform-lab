@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 NAMESPACE="${BLOG_NAMESPACE:-blog}"
 DEPLOYMENT="${BLOG_DEPLOYMENT:-blog}"
-TIMEOUT="${BLOG_ROLLOUT_TIMEOUT:-180s}"
+TIMEOUT="${BLOG_ROLLOUT_TIMEOUT:-10m}"
 POD_SELECTOR="${BLOG_POD_SELECTOR:-}"
 
 echo "Kubernetes context: $(kubectl config current-context)"
