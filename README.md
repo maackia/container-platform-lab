@@ -27,7 +27,7 @@ Node.js Pod /metrics
 → Prometheus Operator
 → Prometheus
 ├→ Grafana Dashboard
-└→ PrometheusRule → Alertmanager
+└→ PrometheusRule → Alertmanager → AlertmanagerConfig → Discord
 
 Mac browser
 → UTM host 8081 / guest 80
@@ -190,7 +190,7 @@ Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kuberne
 
 ## K3s 모니터링과 알림
 
-Helm으로 `kube-prometheus-stack`을 설치한 뒤 애플리케이션 ServiceMonitor, Grafana 대시보드, 경고 규칙과 모니터링 Ingress를 적용합니다.
+Helm으로 `kube-prometheus-stack`을 설치한 뒤 Discord Webhook Secret을 생성하고, 애플리케이션 ServiceMonitor, Grafana 대시보드, 경고 규칙, Discord 알림 라우팅과 모니터링 Ingress를 적용합니다. 실제 Webhook URL은 Git에 저장하지 않습니다.
 
 ```bash
 helm upgrade --install monitoring \
@@ -201,6 +201,17 @@ helm upgrade --install monitoring \
   -f helm/kube-prometheus-stack-values.yaml \
   --wait \
   --timeout 15m
+
+read -rsp "Discord webhook URL: " DISCORD_WEBHOOK_URL
+echo
+printf '%s' "$DISCORD_WEBHOOK_URL" \
+  | kubectl create secret generic alertmanager-discord-webhook \
+      --namespace monitoring \
+      --from-file=webhook-url=/dev/stdin \
+      --dry-run=client \
+      -o yaml \
+  | kubectl apply -f -
+unset DISCORD_WEBHOOK_URL
 
 kubectl apply -f k8s/monitoring/
 kubectl apply -f k8s/blog/04-blog-servicemonitor.yaml
@@ -256,7 +267,7 @@ Alertmanager: http://alertmanager.platform.local:8081
 - 블로그 target·게시글·Pod 리소스 Grafana 대시보드
 - Grafana 기반 애플리케이션 RED·Pod 리소스 대시보드
 - PrometheusRule 기반 replica 저하·전체 중단 경고
-- Alertmanager 기반 활성 경고 확인
+- AlertmanagerConfig와 Kubernetes Secret 기반 Discord FIRING·RESOLVED 알림
 - Traefik 호스트 라우팅 기반 모니터링 서비스 접근
 - Kubeconform 기반 Kubernetes·Helm 렌더링 결과 CI 검증
 
@@ -299,7 +310,8 @@ Alertmanager: http://alertmanager.platform.local:8081
 │       ├── 10-app-servicemonitor.yaml
 │       ├── 11-platform-app-dashboard-configmap.yaml
 │       ├── 12-platform-app-prometheusrule.yaml
-│       └── 13-monitoring-ingress.yaml
+│       ├── 13-monitoring-ingress.yaml
+│       └── 14-platform-discord-alertmanagerconfig.yaml
 ├── monitoring
 ├── nginx
 ├── scripts
@@ -339,7 +351,7 @@ Docker Compose 스택
 → kube-prometheus-stack
 → ServiceMonitor 기반 앱 메트릭 수집
 → Grafana RED 대시보드 자동 provisioning
-→ PrometheusRule과 Alertmanager 경고 검증
+→ PrometheusRule·Alertmanager·Discord FIRING/RESOLVED 알림 검증
 → Kubernetes·Helm 매니페스트 CI 검증
 → Next.js 블로그 K3s 배포
 → 블로그 ServiceMonitor와 Grafana 대시보드 provisioning
