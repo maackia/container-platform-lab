@@ -11,7 +11,7 @@ Node.js Pod /metrics
 → Prometheus Operator
 → Prometheus
 ├→ Grafana
-└→ PrometheusRule → Alertmanager
+└→ PrometheusRule → Alertmanager → AlertmanagerConfig → Discord
 
 Mac browser
 → UTM port forwarding
@@ -77,9 +77,18 @@ kubeProxy:
 ```yaml
 alertmanager:
   enabled: true
+
+  alertmanagerSpec:
+    alertmanagerConfigSelector:
+      matchLabels:
+        alertmanagerConfig: platform-discord
+    alertmanagerConfigMatcherStrategy:
+      type: None
 ```
 
 `defaultRules.rules.alertmanager: false`는 Alertmanager 프로세스를 끄는 설정이 아니라 chart가 제공하는 Alertmanager 자체 상태 경고 규칙을 비활성화하는 설정이다. 사용자 정의 애플리케이션 규칙과 Alertmanager 실행 여부는 별도로 관리된다.
+
+`alertmanagerConfigSelector`는 `alertmanagerConfig=platform-discord` 라벨이 있는 `AlertmanagerConfig`만 선택한다. 설정 리소스는 `monitoring` namespace에 있지만 `platform-lab` 경고를 처리해야 하므로 namespace matcher를 강제로 추가하지 않는 `None` 전략을 사용한다. 기본 receiver인 `discard`는 선택된 외부 경로가 없는 알림을 조용히 처리하고, 실제 Discord 전송은 별도의 `AlertmanagerConfig`가 담당한다.
 
 Grafana와 Prometheus 데이터는 K3s의 `local-path` StorageClass를 사용해 PVC에 저장한다.
 
@@ -129,7 +138,22 @@ kubectl get pvc -n monitoring
 kubectl get prometheus,alertmanager -n monitoring
 ```
 
-chart 설치로 `monitoring.coreos.com` CRD와 `monitoring` namespace가 준비된 뒤 애플리케이션 모니터링 리소스를 적용한다.
+chart 설치로 `monitoring.coreos.com` CRD와 `monitoring` namespace가 준비되면 Discord Webhook을 Kubernetes Secret으로 생성한다. 실제 URL은 셸 기록이나 Git 파일에 직접 적지 않는다.
+
+```bash
+read -rsp "Discord webhook URL: " DISCORD_WEBHOOK_URL
+echo
+printf '%s' "$DISCORD_WEBHOOK_URL" \
+  | kubectl create secret generic alertmanager-discord-webhook \
+      --namespace monitoring \
+      --from-file=webhook-url=/dev/stdin \
+      --dry-run=client \
+      -o yaml \
+  | kubectl apply -f -
+unset DISCORD_WEBHOOK_URL
+```
+
+Secret이 준비된 뒤 애플리케이션 모니터링 리소스를 적용한다.
 
 ```bash
 kubectl apply -f k8s/monitoring/
@@ -520,7 +544,64 @@ kubectl rollout status deployment/app -n platform-lab
 kubectl get pods -n platform-lab -l app=platform-app
 ```
 
-현재 Alertmanager는 외부 수신자를 연결하지 않은 기본 `null` receiver를 사용한다. 따라서 Prometheus에서 발생한 경고가 Alertmanager UI와 API에 전달되는 것까지 검증하며, Discord 알림 발송은 후속 범위로 둔다.
+Discord 라우팅은 다음 파일에 선언한다.
+
+```text
+k8s/monitoring/14-platform-discord-alertmanagerconfig.yaml
+```
+
+현재 클러스터의 CRD가 제공하는 `monitoring.coreos.com/v1alpha1` API를 사용한다. `AlertmanagerConfig`는 `service=platform-app` 경고만 선택하며, Webhook URL은 같은 `monitoring` namespace의 `alertmanager-discord-webhook` Secret에서 읽는다.
+
+```yaml
+spec:
+  route:
+    receiver: discord-platform
+    groupBy:
+      - namespace
+      - alertname
+    groupWait: 10s
+    groupInterval: 5m
+    repeatInterval: 4h
+    matchers:
+      - name: service
+        value: platform-app
+        matchType: "="
+  receivers:
+    - name: discord-platform
+      discordConfigs:
+        - apiURL:
+            name: alertmanager-discord-webhook
+            key: webhook-url
+          sendResolved: true
+```
+
+알림 경로는 다음과 같다.
+
+```text
+PrometheusRule Firing
+→ Prometheus
+→ Alertmanager
+→ AlertmanagerConfig label·matcher 선택
+→ Kubernetes Secret의 Webhook URL 사용
+→ Discord FIRING 알림
+
+replica 복구
+→ Resolved
+→ groupInterval 이후 Discord RESOLVED 알림
+```
+
+리소스와 조정 상태를 확인한다.
+
+```bash
+kubectl get secret alertmanager-discord-webhook -n monitoring
+kubectl get alertmanagerconfig platform-discord -n monitoring
+kubectl get alertmanager monitoring-kube-prometheus-alertmanager \
+  -n monitoring \
+  -o json \
+  | jq '.status.conditions'
+```
+
+`sendResolved: true`여도 복구 알림은 즉시 전송되지 않을 수 있다. `groupInterval: 5m`은 기존 알림 그룹에서 새 경고나 복구가 생겼는지 확인하는 간격이므로, 실습에서 RESOLVED 메시지가 몇 분 뒤 도착하는 것은 정상이다.
 
 ## 10. Traefik Ingress로 모니터링 서비스 접근
 
@@ -736,7 +817,22 @@ kubectl get prometheusrule platform-app-alerts -n platform-lab
 
 Prometheus에서 규칙이 Firing이어도 Alertmanager 화면에서는 namespace별 그룹이 접힌 상태일 수 있다. `namespace="platform-lab"` 그룹을 펼치고 `active=true`, `silenced=false`, `inhibited=false` 필터를 확인한다.
 
-현재 receiver가 `null`인 것은 경고 전달 실패가 아니라 외부 알림 채널을 아직 연결하지 않았다는 뜻이다.
+Discord 알림이 도착하지 않으면 `AlertmanagerConfig` 라벨과 Helm의 `alertmanagerConfigSelector`가 같은지, 경고에 `service=platform-app` 라벨이 있는지, Secret의 이름과 key가 각각 `alertmanager-discord-webhook`, `webhook-url`인지 확인한다.
+
+### AlertmanagerConfig API 버전을 찾지 못하는 경우
+
+```text
+no matches for kind "AlertmanagerConfig" in version "monitoring.coreos.com/v1beta1"
+```
+
+설치된 CRD가 제공하는 API 버전을 확인한다.
+
+```bash
+kubectl get crd alertmanagerconfigs.monitoring.coreos.com \
+  -o jsonpath='{range .spec.versions[*]}{.name}{"\tserved="}{.served}{"\tstorage="}{.storage}{"\n"}{end}'
+```
+
+현재 환경은 `v1alpha1`을 제공하므로 매니페스트도 같은 버전을 사용한다. CRD를 임의로 교체하기보다 설치된 chart와 Operator가 제공하는 API에 맞추고 서버 측 dry-run으로 검증한다.
 
 ### Kubeconform의 missing kind 오류
 
@@ -766,9 +862,10 @@ kube-prometheus-stack 설치
 → ConfigMap 기반 대시보드 provisioning
 → PrometheusRule 기반 replica 경고
 → Alertmanager Pending·Firing·Resolved 검증
+→ AlertmanagerConfig와 Secret 기반 Discord FIRING·RESOLVED 알림
 → Traefik 호스트 기반 모니터링 Ingress
 → UTM 단일 HTTP 포트 포워딩
 → Helm 및 Kubernetes 리소스 CI 검증
 ```
 
-다음 확장 단계에서는 Discord Alertmanager receiver, Silence·Inhibition 정책, 부하 테스트와 오류율·응답시간 경고 규칙을 다룰 수 있다.
+다음 확장 단계에서는 Silence·Inhibition 정책, 부하 테스트와 오류율·응답시간 경고 규칙을 다룰 수 있다.
