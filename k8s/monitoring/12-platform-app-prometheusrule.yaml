@@ -39,3 +39,76 @@ spec:
             summary: Platform application is down
             description: >-
               The platform application has no available replicas.
+
+        - alert: PlatformAppHighErrorRate
+          expr: |
+            ( 100 * 
+              (
+                sum(
+                  rate(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      status_code=~"5..",
+                      route!~"/health|/metrics"
+                    }[2m]
+                  )
+                )
+                or vector(0)
+              )
+              /
+              clamp_min(
+                sum(
+                  rate(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[2m]
+                  )
+                ),
+                0.001
+              )
+            ) > 10
+            and
+            sum(
+              rate(
+                app_http_requests_total{
+                  namespace="platform-lab",
+                  job="app",
+                  route!~"/health|/metrics"
+                }[2m]
+              )
+            ) > 0.05
+          for: 1m
+          labels:
+            severity: warning
+            service: platform-app
+          annotations:
+            summary: Platform application has a high error rate.
+            description: >-
+              HTTP 5xx error rate has exceeded 10% for more than 1 minute.
+              Crrent value: {{ $value }}%
+
+        - alert: PlatformAppHighP95Latency
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le, route) (
+                rate(
+                  app_http_request_duration_seconds_bucket{
+                    namespace="platform-lab",
+                    job="app",
+                    route!~"/health|/metrics"
+                  }[2m]
+                )
+              )
+            ) > 1
+          for: 1m
+          labels:
+            severity: warning
+            service: platform-app
+          annotations:
+            summary: Platform application p95 has high latency.
+            description: >-
+              The p95 response time for route {{ $labels.route }} has exceeded 1 second for more than 1 minute.
