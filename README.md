@@ -190,7 +190,7 @@ Secret 생성, UTM 포트 포워딩, 상태 확인 방법은 [K3s 기반 Kuberne
 
 ## K3s 모니터링과 알림
 
-Helm으로 `kube-prometheus-stack`을 설치한 뒤 Discord Webhook Secret을 생성하고, 애플리케이션 ServiceMonitor, Grafana 대시보드, 경고 규칙, Discord 알림 라우팅과 모니터링 Ingress를 적용합니다. 실제 Webhook URL은 Git에 저장하지 않습니다.
+Helm으로 `kube-prometheus-stack`을 설치한 뒤 Discord Webhook Secret을 생성하고, 애플리케이션 ServiceMonitor, Grafana 대시보드, replica·HTTP 5xx 오류율·p95 응답 지연 경고 규칙, Discord 알림 라우팅과 모니터링 Ingress를 적용합니다. 실제 Webhook URL은 Git에 저장하지 않습니다.
 
 ```bash
 helm upgrade --install monitoring \
@@ -266,7 +266,7 @@ Alertmanager: http://alertmanager.platform.local:8081
 - Grafana ConfigMap 기반 대시보드 provisioning
 - 블로그 target·게시글·Pod 리소스 Grafana 대시보드
 - Grafana 기반 애플리케이션 RED·Pod 리소스 대시보드
-- PrometheusRule 기반 replica 저하·전체 중단 경고
+- PrometheusRule 기반 replica 저하·전체 중단·HTTP 5xx 오류율·p95 응답 지연 경고
 - AlertmanagerConfig와 Kubernetes Secret 기반 Discord FIRING·RESOLVED 알림
 - Traefik 호스트 라우팅 기반 모니터링 서비스 접근
 - Kubeconform 기반 Kubernetes·Helm 렌더링 결과 CI 검증
@@ -351,7 +351,8 @@ Docker Compose 스택
 → kube-prometheus-stack
 → ServiceMonitor 기반 앱 메트릭 수집
 → Grafana RED 대시보드 자동 provisioning
-→ PrometheusRule·Alertmanager·Discord FIRING/RESOLVED 알림 검증
+→ PrometheusRule 기반 replica·HTTP 5xx 오류율·p95 응답 지연 경고
+→ Alertmanager·Discord FIRING/RESOLVED 알림 검증
 → Kubernetes·Helm 매니페스트 CI 검증
 → Next.js 블로그 K3s 배포
 → 블로그 ServiceMonitor와 Grafana 대시보드 provisioning

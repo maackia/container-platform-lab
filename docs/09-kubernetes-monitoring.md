@@ -1,6 +1,6 @@
 # Kubernetes 모니터링과 알림
 
-이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션과 `blog` 서비스의 메트릭을 수집·시각화하며 replica 장애를 경고로 전달한 과정을 정리한다.
+이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션과 `blog` 서비스의 메트릭을 수집·시각화하며 replica 장애와 HTTP 오류율·p95 응답 지연을 경고로 전달한 과정을 정리한다.
 
 구성 범위는 다음과 같다.
 
@@ -501,12 +501,18 @@ metadata:
 
 Prometheus 리소스의 `ruleSelector`가 `release=monitoring`을 요구하므로 라벨이 없거나 값이 다르면 `PrometheusRule`을 생성해도 실제 규칙 목록에 나타나지 않는다. `ruleNamespaceSelector: {}`는 `platform-lab`처럼 다른 namespace의 규칙도 검색하게 한다.
 
-추가한 규칙은 다음 두 개다.
+추가한 규칙은 다음 네 개다.
 
 | 경고 | 조건 | 지속 시간 | 심각도 |
 |---|---|---:|---|
 | `PlatformAppReplicaDegraded` | 사용 가능한 app replica가 1개 | 1분 | warning |
 | `PlatformAppDown` | 사용 가능한 app replica가 0개 | 1분 | critical |
+| `PlatformAppHighErrorRate` | 최소 요청률을 충족하면서 HTTP 5xx 비율이 10% 초과 | 1분 | warning |
+| `PlatformAppHighP95Latency` | 경로별 p95 응답시간이 1초 초과 | 1분 | warning |
+
+오류율 규칙은 `/health`와 `/metrics`를 사용자 트래픽에서 제외하고, 전체 요청률이 초당 `0.05`보다 클 때만 평가한다. 트래픽이 거의 없는 환경에서 단일 실패 요청만으로 오류율이 100%가 되는 오탐을 줄이기 위한 조건이다.
+
+p95 규칙은 Histogram bucket을 `le`와 `route` 기준으로 집계해 경로별 95번째 백분위 응답시간을 계산한다. 이 규칙도 내부 점검 경로를 제외하므로 실제 애플리케이션 경로의 지연을 대상으로 한다.
 
 경고는 조건이 참이 되는 즉시 알림으로 전달되지 않는다.
 
@@ -543,6 +549,34 @@ kubectl scale deployment/app -n platform-lab --replicas=2
 kubectl rollout status deployment/app -n platform-lab
 kubectl get pods -n platform-lab -l app=platform-app
 ```
+
+### HTTP 오류율과 p95 응답 지연 검증
+
+오류와 지연 조건을 동시에 유지하기 위해 `/error`와 `/slow` 요청을 약 2분 30초 동안 반복했다.
+
+```bash
+for i in {1..100}; do
+  curl --noproxy '*' -s -o /dev/null \
+    http://app.platform.local:8081/error
+
+  curl --noproxy '*' -s -o /dev/null \
+    http://app.platform.local:8081/slow
+done
+```
+
+테스트 중 Prometheus에서 두 규칙이 다음 순서로 바뀌는 것을 확인했다.
+
+```text
+PlatformAppHighErrorRate
+Inactive → Pending → Firing
+
+PlatformAppHighP95Latency{route="/slow"}
+Inactive → Pending → Firing
+```
+
+Alertmanager와 Discord에서 두 경고의 FIRING 알림을 확인하고, 요청을 중단한 뒤 최근 2분 범위에서 테스트 트래픽이 사라지면서 Resolved 상태와 Discord 복구 알림까지 확인했다.
+
+최근 범위에 해당 경로의 요청이 없으면 `histogram_quantile` 결과가 `NaN`으로 보일 수 있다. 이는 규칙 로딩 실패가 아니라 계산할 최신 표본이 없다는 뜻이며, 과거 구간은 Grafana 범위 그래프에서 확인할 수 있다.
 
 Discord 라우팅은 다음 파일에 선언한다.
 
@@ -780,7 +814,7 @@ kubectl get service app -n platform-lab \
 
 ### HTTP 메트릭 검색 결과가 비어 있는 경우
 
-현재 사용자 정의 메트릭 이름은 `http_`가 아니라 `app_`으로 시작한다.
+현재 사용자 정의 메트릭 이름은 `http_`가 아니라 `app_`으로 시작한다. 메트릭 이름은 완전히 일치해야 하며, 오류율 규칙에서 단수형 `app_http_request_total`을 사용하면 시계열을 찾지 못한다.
 
 ```text
 app_http_requests_total
@@ -860,7 +894,7 @@ kube-prometheus-stack 설치
 → Grafana RED·Pod 리소스 대시보드 구성
 → Blog Overview 대시보드 구성
 → ConfigMap 기반 대시보드 provisioning
-→ PrometheusRule 기반 replica 경고
+→ PrometheusRule 기반 replica·HTTP 5xx 오류율·p95 응답 지연 경고
 → Alertmanager Pending·Firing·Resolved 검증
 → AlertmanagerConfig와 Secret 기반 Discord FIRING·RESOLVED 알림
 → Traefik 호스트 기반 모니터링 Ingress
@@ -868,4 +902,4 @@ kube-prometheus-stack 설치
 → Helm 및 Kubernetes 리소스 CI 검증
 ```
 
-다음 확장 단계에서는 Silence·Inhibition 정책, 부하 테스트와 오류율·응답시간 경고 규칙을 다룰 수 있다.
+다음 확장 단계에서는 Alertmanager Silence·Inhibition 정책과 재현 가능한 부하 테스트를 다룰 수 있다.
