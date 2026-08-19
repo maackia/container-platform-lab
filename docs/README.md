@@ -16,6 +16,7 @@
 8. [K3s 기반 Kubernetes 배포](./08-k3s.md)
 9. [Kubernetes 모니터링과 알림](./09-kubernetes-monitoring.md)
 10. [Next.js 블로그 K3s 배포와 모니터링](./10-blog-k3s.md)
+11. [학습 로드맵과 다음 단계](./11-roadmap.md)
 
 ## 참고 예제
 
