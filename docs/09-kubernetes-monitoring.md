@@ -637,6 +637,85 @@ kubectl get alertmanager monitoring-kube-prometheus-alertmanager \
 
 `sendResolved: true`여도 복구 알림은 즉시 전송되지 않을 수 있다. `groupInterval: 5m`은 기존 알림 그룹에서 새 경고나 복구가 생겼는지 확인하는 간격이므로, 실습에서 RESOLVED 메시지가 몇 분 뒤 도착하는 것은 정상이다.
 
+### Silence와 Inhibition
+
+Alertmanager는 같은 알림 피로를 줄이는 두 가지 억제 방식을 제공한다.
+
+| 구분 | Silence | Inhibition |
+|---|---|---|
+| 목적 | 유지보수처럼 예상한 시간 동안 알림을 수동 억제 | 상위 장애가 발생했을 때 파생되는 하위 경고를 자동 억제 |
+| 생성 위치 | Alertmanager UI 또는 API | Git으로 관리하는 `AlertmanagerConfig` |
+| 조건 | 사용자가 지정한 matcher와 만료 시간 | source·target matcher와 `equal` 라벨 |
+| 현재 실습 | `PlatformAppDown`을 정해진 시간 동안 Silence | critical `PlatformAppDown`이 활성화되면 같은 서비스의 warning 억제 |
+
+Inhibition 정책은 다음 파일에 선언한다.
+
+```text
+k8s/monitoring/15-platform-alert-inhibition.yaml
+```
+
+```yaml
+spec:
+  inhibitRules:
+    - sourceMatch:
+        - name: alertname
+          matchType: "="
+          value: PlatformAppDown
+        - name: severity
+          matchType: "="
+          value: critical
+      targetMatch:
+        - name: service
+          matchType: "="
+          value: platform-app
+        - name: severity
+          matchType: "="
+          value: warning
+      equal:
+        - namespace
+        - service
+```
+
+`sourceMatch`는 억제를 시작하는 상위 경고, `targetMatch`는 억제할 하위 경고를 선택한다. `equal`은 두 경고의 `namespace`와 `service` 라벨 값이 모두 같을 때만 정책을 적용해 다른 환경이나 서비스의 경고가 함께 숨겨지는 것을 막는다.
+
+오류율 규칙의 `sum(...)`과 p95 규칙의 `sum by (le, route)`는 원본 시계열의 `namespace` 라벨을 집계 과정에서 제거한다. Inhibition의 `equal` 비교에 필요한 라벨을 항상 보존하도록 두 경고의 정적 라벨에 namespace를 명시한다.
+
+```yaml
+labels:
+  namespace: platform-lab
+  severity: warning
+  service: platform-app
+```
+
+Inhibition은 경고 자체를 없애지 않고 전달만 억제한다.
+
+```text
+Prometheus
+→ source와 target 모두 Firing
+
+Alertmanager
+→ source는 Active
+→ target은 Inhibited
+
+Discord
+→ source 알림만 전송
+```
+
+실제 애플리케이션을 0 replica로 내리면 HTTP 표본이 더 이상 생성되지 않아 오류율이나 p95 경고가 먼저 사라질 수 있다. 그래서 정책 자체를 재현 가능하게 검증할 때는 `namespace=platform-lab`, `service=platform-app`, `severity=warning` 라벨을 가진 임시 `vector(1)` 규칙을 사용했다. `namespace`와 `service`는 Inhibition의 `equal` 조건과 일치해야 한다.
+
+검증 순서는 다음과 같다.
+
+```text
+1. 임시 warning 경고를 Firing 상태로 만든다.
+2. PlatformAppDown이 Firing될 때까지 기다린다.
+3. Prometheus에서 두 경고가 모두 Firing인지 확인한다.
+4. Alertmanager에서 warning이 Inhibited인지 확인한다.
+5. Discord에는 critical 경고만 새로 도착하는지 확인한다.
+6. 임시 규칙을 삭제하고 app replica를 2개로 복구한다.
+```
+
+target 경고가 source보다 먼저 Firing되면 source가 활성화되기 전까지 Discord 알림 한 건이 전송될 수 있다. Inhibition은 이미 전송된 메시지를 회수하지 않으며, source와 target이 동시에 활성화된 시점부터 이후 알림을 억제한다.
+
 ## 10. Traefik Ingress로 모니터링 서비스 접근
 
 모니터링 서비스용 Ingress는 다음 파일에 선언한다.
@@ -853,6 +932,18 @@ Prometheus에서 규칙이 Firing이어도 Alertmanager 화면에서는 namespac
 
 Discord 알림이 도착하지 않으면 `AlertmanagerConfig` 라벨과 Helm의 `alertmanagerConfigSelector`가 같은지, 경고에 `service=platform-app` 라벨이 있는지, Secret의 이름과 key가 각각 `alertmanager-discord-webhook`, `webhook-url`인지 확인한다.
 
+### Inhibition이 적용되지 않는 경우
+
+Prometheus에서 source와 target 경고가 동시에 Firing인지 먼저 확인한다. 그다음 두 경고에 `equal`에서 요구하는 `namespace`와 `service` 라벨이 모두 존재하고 값도 같은지 확인한다.
+
+```bash
+kubectl get alertmanagerconfig platform-alert-inhibition \
+  -n monitoring \
+  -o yaml
+```
+
+Prometheus 집계 연산이 라벨을 제거할 수 있으므로 필요하면 `PrometheusRule`의 `labels`에 비교용 값을 명시한다. Alertmanager 화면에서 `Inhibited` 필터도 활성화해야 억제된 경고가 표시된다. source보다 먼저 전송된 target 메시지는 정책 적용 후에도 Discord에서 사라지지 않는다.
+
 ### AlertmanagerConfig API 버전을 찾지 못하는 경우
 
 ```text
@@ -897,9 +988,11 @@ kube-prometheus-stack 설치
 → PrometheusRule 기반 replica·HTTP 5xx 오류율·p95 응답 지연 경고
 → Alertmanager Pending·Firing·Resolved 검증
 → AlertmanagerConfig와 Secret 기반 Discord FIRING·RESOLVED 알림
+→ Alertmanager Silence 기반 유지보수 알림 억제
+→ critical source와 warning target의 namespace·service 기반 Inhibition
 → Traefik 호스트 기반 모니터링 Ingress
 → UTM 단일 HTTP 포트 포워딩
 → Helm 및 Kubernetes 리소스 CI 검증
 ```
 
-다음 확장 단계에서는 Alertmanager Silence·Inhibition 정책과 재현 가능한 부하 테스트를 다룰 수 있다.
+다음 확장 단계에서는 알림 정책 테스트 자동화, 재현 가능한 부하 테스트, SLO와 recording rule을 다룰 수 있다.
