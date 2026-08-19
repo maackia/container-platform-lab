@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: platform-alert-inhibition
+  namespace: monitoring
+  labels:
+    alertmanagerConfig: platform-discord
+
+spec:
+  inhibitRules:
+    - sourceMatch:
+        - name: alertname
+          matchType: "="
+          value: PlatformAppDown
+        - name: severity
+          matchType: "="
+          value: critical
+      
+      targetMatch:
+        - name: service
+          matchType: "="
+          value: platform-app
+        - name: severity
+          matchType: "="
+          value: warning
+
+      equal:
+        - namespace
+        - service
