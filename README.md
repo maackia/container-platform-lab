@@ -2,6 +2,16 @@
 
 Docker Compose로 구성한 nginx, Node.js, PostgreSQL, Prometheus, Grafana 스택을 CI/CD와 버전 기반 배포까지 확장하고, 데모 애플리케이션과 별도 Next.js 블로그를 K3s에 배포해 Kubernetes 리소스와 클러스터 모니터링을 학습하는 실습 저장소입니다.
 
+<a href="./docs/11-roadmap.md">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./docs/assets/roadmap-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="./docs/assets/roadmap-light.svg">
+    <img src="./docs/assets/roadmap-light.svg" width="100%" alt="Container Platform Lab 학습 로드맵: Container, CI/CD, K3s, Observability 완료 후 Reliability, GitOps, Hardening, Infrastructure Scale로 확장">
+  </picture>
+</a>
+
+<p align="center"><a href="./docs/11-roadmap.md"><strong>단계별 로드맵과 다음 학습 목표 보기 →</strong></a></p>
+
 ## 아키텍처
 
 ```text
@@ -292,7 +302,11 @@ Alertmanager: http://alertmanager.platform.local:8081
 │   ├── 07-production-compose.md
 │   ├── 08-k3s.md
 │   ├── 09-kubernetes-monitoring.md
-│   └── 10-blog-k3s.md
+│   ├── 10-blog-k3s.md
+│   ├── 11-roadmap.md
+│   └── assets
+│       ├── roadmap-dark.svg
+│       └── roadmap-light.svg
 ├── grafana/dashboards
 │   ├── blog-overview.json
 │   └── platform-app-overview.json
@@ -338,6 +352,7 @@ Alertmanager: http://alertmanager.platform.local:8081
 - [K3s 기반 Kubernetes 배포](./docs/08-k3s.md)
 - [Kubernetes 모니터링과 알림](./docs/09-kubernetes-monitoring.md)
 - [Next.js 블로그 K3s 배포와 모니터링](./docs/10-blog-k3s.md)
+- [학습 로드맵과 다음 단계](./docs/11-roadmap.md)
 
 ## 현재 완료 범위
 

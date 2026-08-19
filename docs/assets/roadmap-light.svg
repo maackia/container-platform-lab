@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900" role="img" aria-labelledby="title desc">
+  <title id="title">Container Platform Lab roadmap — light theme</title>
+  <desc id="desc">Docker와 CI/CD부터 K3s 관측성까지 완료하고 신뢰성, GitOps, 보안, 인프라 확장으로 이어지는 여덟 단계 로드맵</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8fbff"/>
+      <stop offset="0.52" stop-color="#eef4fb"/>
+      <stop offset="1" stop-color="#f7f3ff"/>
+    </linearGradient>
+    <linearGradient id="headline" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="0.58" stop-color="#0369a1"/>
+      <stop offset="1" stop-color="#6d28d9"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#0f172a" stroke-opacity="0.035"/>
+    </pattern>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#64748b" flood-opacity="0.16"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L8 4L0 8Z" fill="#94a3b8"/>
+    </marker>
+    <style>
+      text { font-family: Inter, Pretendard, "Apple SD Gothic Neo", system-ui, sans-serif; }
+      .eyebrow { font-size: 14px; font-weight: 800; letter-spacing: 2.4px; fill: #0284c7; }
+      .headline { font-size: 46px; font-weight: 800; letter-spacing: -1.8px; fill: url(#headline); }
+      .lead { font-size: 17px; font-weight: 500; fill: #52657b; }
+      .progress-label { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; fill: #0284c7; }
+      .progress-main { font-size: 18px; font-weight: 800; fill: #0f172a; }
+      .phase { font-size: 12px; font-weight: 900; letter-spacing: 1.8px; }
+      .status { font-size: 10px; font-weight: 900; letter-spacing: 1.4px; }
+      .card-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; fill: #0f172a; }
+      .card-copy { font-size: 14px; font-weight: 500; fill: #52657b; }
+      .item { font-size: 14px; font-weight: 650; fill: #334155; }
+      .focus-kicker { font-size: 11px; font-weight: 900; letter-spacing: 1.8px; fill: #0284c7; }
+      .focus-copy { font-size: 16px; font-weight: 700; fill: #1e293b; }
+      .footer { font-size: 12px; font-weight: 600; fill: #64748b; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="900" rx="28" fill="url(#background)"/>
+  <rect width="1440" height="900" rx="28" fill="url(#grid)"/>
+  <circle cx="94" cy="70" r="5" fill="#0284c7"/>
+  <circle cx="94" cy="70" r="14" fill="#0284c7" opacity="0.10"/>
+  <text x="116" y="75" class="eyebrow">LEARNING ROADMAP · 2026</text>
+  <text x="48" y="126" class="headline">Container Platform Lab</text>
+  <text x="50" y="158" class="lead">컨테이너에서 운영 가능한 Kubernetes 플랫폼으로 확장하는 실습 여정</text>
+
+  <g transform="translate(1094 45)">
+    <rect width="298" height="86" rx="18" fill="#f0f9ff" stroke="#38bdf8" stroke-opacity="0.65"/>
+    <text x="20" y="26" class="progress-label">CURRENT PROGRESS</text>
+    <text x="20" y="55" class="progress-main">04 / 08 stages complete</text>
+    <rect x="20" y="67" width="258" height="5" rx="3" fill="#dbeafe"/>
+    <rect x="20" y="67" width="129" height="5" rx="3" fill="#0284c7"/>
+  </g>
+
+  <path d="M360 340H390M702 340H732M1044 340H1074M1239 490V515M1074 665H1044M732 665H702M390 665H360" fill="none" stroke="#94a3b8" stroke-opacity="0.55" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g transform="translate(48 190)" filter="url(#shadow)">
+    <rect width="312" height="300" rx="22" fill="#ffffff" stroke="#b7e7d2"/>
+    <rect width="312" height="5" rx="3" fill="#059669"/>
+    <text x="22" y="38" class="phase" fill="#059669">PHASE 01</text>
+    <rect x="222" y="20" width="68" height="24" rx="12" fill="#ecfdf5" stroke="#059669"/>
+    <text x="256" y="36" text-anchor="middle" class="status" fill="#059669">DONE</text>
+    <text x="22" y="78" class="card-title">Container Foundation</text>
+    <text x="22" y="104" class="card-copy">단일 호스트에서 서비스 구조와</text>
+    <text x="22" y="124" class="card-copy">컨테이너 운영의 기초를 검증</text>
+    <circle cx="27" cy="163" r="5" fill="#059669"/><text x="43" y="168" class="item">Docker · Compose · nginx</text>
+    <circle cx="27" cy="201" r="5" fill="#059669"/><text x="43" y="206" class="item">Node.js · PostgreSQL</text>
+    <circle cx="27" cy="239" r="5" fill="#059669"/><text x="43" y="244" class="item">Healthcheck · Volume</text>
+    <text x="22" y="279" class="status" fill="#059669">BUILD → RUN → OBSERVE</text>
+  </g>
+
+  <g transform="translate(390 190)" filter="url(#shadow)">
+    <rect width="312" height="300" rx="22" fill="#ffffff" stroke="#b7e7d2"/>
+    <rect width="312" height="5" rx="3" fill="#059669"/>
+    <text x="22" y="38" class="phase" fill="#059669">PHASE 02</text>
+    <rect x="222" y="20" width="68" height="24" rx="12" fill="#ecfdf5" stroke="#059669"/>
+    <text x="256" y="36" text-anchor="middle" class="status" fill="#059669">DONE</text>
+    <text x="22" y="78" class="card-title">Delivery Pipeline</text>
+    <text x="22" y="104" class="card-copy">검증된 이미지를 재현 가능하게</text>
+    <text x="22" y="124" class="card-copy">빌드하고 배포·롤백</text>
+    <circle cx="27" cy="163" r="5" fill="#059669"/><text x="43" y="168" class="item">GitHub Actions CI</text>
+    <circle cx="27" cy="201" r="5" fill="#059669"/><text x="43" y="206" class="item">GHCR · Multi-architecture</text>
+    <circle cx="27" cy="239" r="5" fill="#059669"/><text x="43" y="244" class="item">SemVer · SHA rollback</text>
+    <text x="22" y="279" class="status" fill="#059669">TEST → PUBLISH → RELEASE</text>
+  </g>
+
+  <g transform="translate(732 190)" filter="url(#shadow)">
+    <rect width="312" height="300" rx="22" fill="#ffffff" stroke="#b7e7d2"/>
+    <rect width="312" height="5" rx="3" fill="#059669"/>
+    <text x="22" y="38" class="phase" fill="#059669">PHASE 03</text>
+    <rect x="222" y="20" width="68" height="24" rx="12" fill="#ecfdf5" stroke="#059669"/>
+    <text x="256" y="36" text-anchor="middle" class="status" fill="#059669">DONE</text>
+    <text x="22" y="78" class="card-title">K3s Platform</text>
+    <text x="22" y="104" class="card-copy">Compose 워크로드를 Kubernetes</text>
+    <text x="22" y="124" class="card-copy">리소스로 분해하고 운영</text>
+    <circle cx="27" cy="163" r="5" fill="#059669"/><text x="43" y="168" class="item">Deployment · Service</text>
+    <circle cx="27" cy="201" r="5" fill="#059669"/><text x="43" y="206" class="item">StatefulSet · PVC</text>
+    <circle cx="27" cy="239" r="5" fill="#059669"/><text x="43" y="244" class="item">Traefik Ingress · Probes</text>
+    <text x="22" y="279" class="status" fill="#059669">DECLARE → SCHEDULE → SERVE</text>
+  </g>
+
+  <g transform="translate(1074 190)" filter="url(#shadow)">
+    <rect width="318" height="300" rx="22" fill="#ffffff" stroke="#b7e7d2"/>
+    <rect width="318" height="5" rx="3" fill="#059669"/>
+    <text x="22" y="38" class="phase" fill="#059669">PHASE 04</text>
+    <rect x="228" y="20" width="68" height="24" rx="12" fill="#ecfdf5" stroke="#059669"/>
+    <text x="262" y="36" text-anchor="middle" class="status" fill="#059669">DONE</text>
+    <text x="22" y="78" class="card-title">Observability</text>
+    <text x="22" y="104" class="card-copy">메트릭에서 경고·알림 억제까지</text>
+    <text x="22" y="124" class="card-copy">운영 피드백 루프 완성</text>
+    <circle cx="27" cy="163" r="5" fill="#059669"/><text x="43" y="168" class="item">Prometheus · Grafana · RED</text>
+    <circle cx="27" cy="201" r="5" fill="#059669"/><text x="43" y="206" class="item">Alertmanager · Discord</text>
+    <circle cx="27" cy="239" r="5" fill="#059669"/><text x="43" y="244" class="item">Silence · Inhibition</text>
+    <text x="22" y="279" class="status" fill="#059669">MEASURE → ALERT → RESPOND</text>
+  </g>
+
+  <g transform="translate(48 515)" filter="url(#shadow)">
+    <rect width="312" height="270" rx="22" fill="#f3fbff" stroke="#0284c7" stroke-opacity="0.7"/>
+    <rect width="312" height="5" rx="3" fill="#0284c7"/>
+    <text x="22" y="38" class="phase" fill="#0284c7">PHASE 05</text>
+    <rect x="218" y="20" width="72" height="24" rx="12" fill="#e0f2fe" stroke="#0284c7"/>
+    <text x="254" y="36" text-anchor="middle" class="status" fill="#0284c7">NEXT</text>
+    <text x="22" y="78" class="card-title">Reliability Engineering</text>
+    <text x="22" y="104" class="card-copy">관측 데이터를 신뢰성 목표와</text>
+    <text x="22" y="124" class="card-copy">반복 가능한 검증으로 연결</text>
+    <circle cx="27" cy="163" r="5" fill="#0284c7"/><text x="43" y="168" class="item">Reproducible load tests</text>
+    <circle cx="27" cy="201" r="5" fill="#0284c7"/><text x="43" y="206" class="item">Recording rules · SLO</text>
+    <circle cx="27" cy="239" r="5" fill="#0284c7"/><text x="43" y="244" class="item">Alert regression tests</text>
+  </g>
+
+  <g transform="translate(390 515)" filter="url(#shadow)">
+    <rect width="312" height="270" rx="22" fill="#f4f5ff" stroke="#4f46e5" stroke-opacity="0.5"/>
+    <rect width="312" height="5" rx="3" fill="#4f46e5"/>
+    <text x="22" y="38" class="phase" fill="#4338ca">PHASE 06</text>
+    <rect x="202" y="20" width="88" height="24" rx="12" fill="#eef2ff" stroke="#4f46e5"/>
+    <text x="246" y="36" text-anchor="middle" class="status" fill="#4338ca">PLANNED</text>
+    <text x="22" y="78" class="card-title">GitOps</text>
+    <text x="22" y="104" class="card-copy">Git을 클러스터 상태의 단일</text>
+    <text x="22" y="124" class="card-copy">신뢰 원천으로 사용</text>
+    <circle cx="27" cy="163" r="5" fill="#4f46e5"/><text x="43" y="168" class="item">Argo CD</text>
+    <circle cx="27" cy="201" r="5" fill="#4f46e5"/><text x="43" y="206" class="item">Automatic sync · Drift</text>
+    <circle cx="27" cy="239" r="5" fill="#4f46e5"/><text x="43" y="244" class="item">Promotion · Rollback</text>
+  </g>
+
+  <g transform="translate(732 515)" filter="url(#shadow)">
+    <rect width="312" height="270" rx="22" fill="#f8f5ff" stroke="#7c3aed" stroke-opacity="0.5"/>
+    <rect width="312" height="5" rx="3" fill="#7c3aed"/>
+    <text x="22" y="38" class="phase" fill="#6d28d9">PHASE 07</text>
+    <rect x="202" y="20" width="88" height="24" rx="12" fill="#f3e8ff" stroke="#7c3aed"/>
+    <text x="246" y="36" text-anchor="middle" class="status" fill="#6d28d9">PLANNED</text>
+    <text x="22" y="78" class="card-title">Platform Hardening</text>
+    <text x="22" y="104" class="card-copy">비밀·통신·공급망과 권한을</text>
+    <text x="22" y="124" class="card-copy">운영 환경 수준으로 강화</text>
+    <circle cx="27" cy="163" r="5" fill="#7c3aed"/><text x="43" y="168" class="item">External Secrets · TLS</text>
+    <circle cx="27" cy="201" r="5" fill="#7c3aed"/><text x="43" y="206" class="item">Image scan · Signing</text>
+    <circle cx="27" cy="239" r="5" fill="#7c3aed"/><text x="43" y="244" class="item">NetworkPolicy · RBAC</text>
+  </g>
+
+  <g transform="translate(1074 515)" filter="url(#shadow)">
+    <rect width="318" height="270" rx="22" fill="#fffaf0" stroke="#d97706" stroke-opacity="0.48"/>
+    <rect width="318" height="5" rx="3" fill="#d97706"/>
+    <text x="22" y="38" class="phase" fill="#d97706">PHASE 08</text>
+    <rect x="222" y="20" width="74" height="24" rx="12" fill="#fff1d6" stroke="#d97706"/>
+    <text x="259" y="36" text-anchor="middle" class="status" fill="#d97706">FUTURE</text>
+    <text x="22" y="78" class="card-title">Infrastructure Scale</text>
+    <text x="22" y="104" class="card-copy">로컬 단일 노드 경험을 실제</text>
+    <text x="22" y="124" class="card-copy">인프라와 분산 시스템으로 확장</text>
+    <circle cx="27" cy="163" r="5" fill="#d97706"/><text x="43" y="168" class="item">Raspberry Pi · Multi-node</text>
+    <circle cx="27" cy="201" r="5" fill="#d97706"/><text x="43" y="206" class="item">Terraform · Ansible · EKS</text>
+    <circle cx="27" cy="239" r="5" fill="#d97706"/><text x="43" y="244" class="item">Kafka · Flink</text>
+  </g>
+
+  <g transform="translate(48 815)">
+    <rect width="1344" height="52" rx="15" fill="#f0f9ff" stroke="#38bdf8" stroke-opacity="0.5"/>
+    <text x="20" y="21" class="focus-kicker">CURRENT FOCUS</text>
+    <text x="20" y="41" class="focus-copy">부하를 재현하고 SLO·Recording Rule·경고 회귀 테스트로 신뢰성을 수치화합니다.</text>
+    <text x="1318" y="32" text-anchor="end" class="footer">github.com/maackia/container-platform-lab</text>
+  </g>
+</svg>
+
