@@ -701,7 +701,7 @@ Discord
 → source 알림만 전송
 ```
 
-실제 애플리케이션을 0 replica로 내리면 HTTP 표본이 더 이상 생성되지 않아 오류율이나 p95 경고가 먼저 사라질 수 있다. 그래서 정책 자체를 재현 가능하게 검증할 때는 `service=platform-app`, `severity=warning` 라벨을 가진 임시 `vector(1)` 규칙을 사용했다.
+실제 애플리케이션을 0 replica로 내리면 HTTP 표본이 더 이상 생성되지 않아 오류율이나 p95 경고가 먼저 사라질 수 있다. 그래서 정책 자체를 재현 가능하게 검증할 때는 `namespace=platform-lab`, `service=platform-app`, `severity=warning` 라벨을 가진 임시 `vector(1)` 규칙을 사용했다. `namespace`와 `service`는 Inhibition의 `equal` 조건과 일치해야 한다.
 
 검증 순서는 다음과 같다.
 
