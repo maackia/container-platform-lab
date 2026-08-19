@@ -17,6 +17,7 @@ spec:
             } == 1
           for: 1m
           labels:
+            namespace: platform-lab
             severity: warning
             service: platform-app
           annotations:
@@ -33,6 +34,7 @@ spec:
             } == 0
           for: 1m
           labels:
+            namespace: platform-lab
             severity: critical
             service: platform-app
           annotations:
@@ -82,6 +84,7 @@ spec:
             ) > 0.05
           for: 1m
           labels:
+            namespace: platform-lab
             severity: warning
             service: platform-app
           annotations:
@@ -106,6 +109,7 @@ spec:
             ) > 1
           for: 1m
           labels:
+            namespace: platform-lab
             severity: warning
             service: platform-app
           annotations:
