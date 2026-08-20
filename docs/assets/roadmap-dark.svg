@@ -117,7 +117,7 @@
     <text x="22" y="279" class="status" fill="#55e6a5">MEASURE → ALERT → RESPOND</text>
   </g>
 
-  <g transform="translate(48 515)" filter="url(#shadow)">
+  <g transform="translate(1074 515)" filter="url(#shadow)">
     <rect width="312" height="270" rx="22" fill="#102331" stroke="#42d9ff" stroke-opacity="0.7"/>
     <rect width="312" height="5" rx="3" fill="#42d9ff"/>
     <text x="22" y="38" class="phase" fill="#42d9ff">PHASE 05</text>
@@ -131,7 +131,7 @@
     <circle cx="27" cy="239" r="5" fill="#42d9ff"/><text x="43" y="244" class="item">Alert regression tests</text>
   </g>
 
-  <g transform="translate(390 515)" filter="url(#shadow)">
+  <g transform="translate(732 515)" filter="url(#shadow)">
     <rect width="312" height="270" rx="22" fill="#151b30" stroke="#818cf8" stroke-opacity="0.5"/>
     <rect width="312" height="5" rx="3" fill="#818cf8"/>
     <text x="22" y="38" class="phase" fill="#a5b4fc">PHASE 06</text>
@@ -145,7 +145,7 @@
     <circle cx="27" cy="239" r="5" fill="#818cf8"/><text x="43" y="244" class="item">Promotion · Rollback</text>
   </g>
 
-  <g transform="translate(732 515)" filter="url(#shadow)">
+  <g transform="translate(390 515)" filter="url(#shadow)">
     <rect width="312" height="270" rx="22" fill="#1c1830" stroke="#a78bfa" stroke-opacity="0.5"/>
     <rect width="312" height="5" rx="3" fill="#a78bfa"/>
     <text x="22" y="38" class="phase" fill="#c4b5fd">PHASE 07</text>
@@ -159,7 +159,7 @@
     <circle cx="27" cy="239" r="5" fill="#a78bfa"/><text x="43" y="244" class="item">NetworkPolicy · RBAC</text>
   </g>
 
-  <g transform="translate(1074 515)" filter="url(#shadow)">
+  <g transform="translate(48 515)" filter="url(#shadow)">
     <rect width="318" height="270" rx="22" fill="#251d21" stroke="#f4b860" stroke-opacity="0.48"/>
     <rect width="318" height="5" rx="3" fill="#f4b860"/>
     <text x="22" y="38" class="phase" fill="#f4b860">PHASE 08</text>
