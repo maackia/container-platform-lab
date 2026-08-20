@@ -1,6 +1,10 @@
-.PHONY: help up down restart ps logs app-logs nginx-logs db-logs db db-count db-recent backup restore reset clean deploy-blog
+.PHONY: help up down restart ps logs app-logs nginx-logs db-logs db db-count db-recent backup restore reset clean deploy-blog load-test-validate load-test-smoke load-test-baseline load-test-latency load-test-error-rate
 
+K6_BASE_URL ?= http://127.0.0.1
+K6_TARGET_HOST ?= app.platform.local
 BACKUP_FILE ?= backups/appdb-data.sql
+
+K6_RUN = k6 run -e BASE_URL=$(K6_BASE_URL) -e TARGET_HOST=$(K6_TARGET_HOST)
 
 help:
 	@echo "사용 가능한 명령:"
@@ -72,3 +76,22 @@ clean:
 
 deploy-blog:
 	./scripts/deploy-blog.sh
+
+load-test-validate:
+	@for file in load-tests/*.js ; do \
+		echo "Validating $$file..."; \
+		k6 inspect $$file > /dev/null || exit 1; \
+	done
+	@echo "All k6 scripts are valid."
+
+load-test-smoke:
+	$(K6_RUN) load-tests/smoke.js
+
+load-test-baseline:
+	$(K6_RUN) load-tests/baseline.js
+
+load-test-latency:
+	$(K6_RUN) load-tests/latency.js
+
+load-test-error-rate:
+	$(K6_RUN) load-tests/error-rate.js
