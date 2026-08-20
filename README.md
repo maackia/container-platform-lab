@@ -61,6 +61,7 @@ GitHub Actions
 - Node.js 24
 - PostgreSQL
 - Prometheus / Grafana
+- Grafana k6
 - GitHub Actions
 - GitHub Container Registry
 - Kubeconform
@@ -77,6 +78,7 @@ GitHub Actions
 5. Kubernetes 모니터링·경고·Ingress 구성
 6. 별도 블로그 이미지를 K3s에 배포하고 모니터링
 7. 배포 스크립트로 블로그 `latest` 이미지 갱신
+8. k6로 정상·지연·오류 트래픽을 재현하고 경고 흐름 검증
 ```
 
 Docker Compose 실습과 K3s 실습은 서로 다른 실행 경로다. K3s 배포만 확인하려면 Compose 실행을 생략할 수 있다.
@@ -254,6 +256,28 @@ Alertmanager: http://alertmanager.platform.local:8081
 
 상세 설정과 검증 방법은 [Kubernetes 모니터링과 알림](./docs/09-kubernetes-monitoring.md)에 정리합니다.
 
+## k6 부하 테스트
+
+k6 시나리오는 K3s의 Traefik Ingress를 통해 애플리케이션에 요청을 보내고, Prometheus·Grafana·Alertmanager·Discord까지 이어지는 관측성과 경고 흐름을 반복해서 검증합니다.
+
+```bash
+make load-test-validate
+make load-test-smoke
+make load-test-baseline
+make load-test-latency
+make load-test-error-rate
+```
+
+기본 연결 주소는 Ubuntu VM의 `http://127.0.0.1`이며 HTTP `Host` 헤더로 `app.platform.local`을 전달합니다. 다른 주소를 사용하려면 `K6_BASE_URL`과 `K6_TARGET_HOST`를 덮어쓸 수 있습니다.
+
+```bash
+make load-test-smoke \
+  K6_BASE_URL=http://127.0.0.1 \
+  K6_TARGET_HOST=app.platform.local
+```
+
+`latency`와 `error-rate`는 실습용 `/slow`, `/error` 엔드포인트를 사용하므로 `LAB_TEST_ENDPOINTS_ENABLED=true`인 학습 환경에서만 실행합니다. 설치 방법, 각 시나리오의 합격 기준과 결과 해석은 [k6 부하 테스트와 경고 검증](./docs/12-load-testing.md)에 정리합니다.
+
 ## 주요 기능
 
 - nginx reverse proxy와 Node.js / PostgreSQL 3-tier 구성
@@ -279,6 +303,8 @@ Alertmanager: http://alertmanager.platform.local:8081
 - PrometheusRule 기반 replica 저하·전체 중단·HTTP 5xx 오류율·p95 응답 지연 경고
 - AlertmanagerConfig와 Kubernetes Secret 기반 Discord FIRING·RESOLVED 알림
 - Alertmanager Silence와 namespace·service 라벨 기반 critical → warning Inhibition
+- k6 smoke·baseline·latency·error-rate 시나리오와 Makefile 실행 명령
+- 부하 기반 p95·HTTP 5xx 경고와 Discord FIRING·RESOLVED 회귀 검증
 - Traefik 호스트 라우팅 기반 모니터링 서비스 접근
 - Kubeconform 기반 Kubernetes·Helm 렌더링 결과 CI 검증
 
@@ -304,6 +330,7 @@ Alertmanager: http://alertmanager.platform.local:8081
 │   ├── 09-kubernetes-monitoring.md
 │   ├── 10-blog-k3s.md
 │   ├── 11-roadmap.md
+│   ├── 12-load-testing.md
 │   └── assets
 │       ├── roadmap-dark.svg
 │       └── roadmap-light.svg
@@ -328,6 +355,11 @@ Alertmanager: http://alertmanager.platform.local:8081
 │       ├── 13-monitoring-ingress.yaml
 │       ├── 14-platform-discord-alertmanagerconfig.yaml
 │       └── 15-platform-alert-inhibition.yaml
+├── load-tests
+│   ├── smoke.js
+│   ├── baseline.js
+│   ├── latency.js
+│   └── error-rate.js
 ├── monitoring
 ├── nginx
 ├── scripts
@@ -353,6 +385,7 @@ Alertmanager: http://alertmanager.platform.local:8081
 - [Kubernetes 모니터링과 알림](./docs/09-kubernetes-monitoring.md)
 - [Next.js 블로그 K3s 배포와 모니터링](./docs/10-blog-k3s.md)
 - [학습 로드맵과 다음 단계](./docs/11-roadmap.md)
+- [k6 부하 테스트와 경고 검증](./docs/12-load-testing.md)
 
 ## 현재 완료 범위
 
@@ -375,6 +408,8 @@ Docker Compose 스택
 → Next.js 블로그 K3s 배포
 → 블로그 ServiceMonitor와 Grafana 대시보드 provisioning
 → 블로그 `latest` 이미지 rollout 자동화와 CI 스크립트 검증
+→ k6 정상·지연·오류 트래픽 시나리오
+→ 부하 기반 p95·HTTP 5xx 경고와 Discord 알림 검증
 ```
 
 .env, backups/, 실제 Secret 값은 Git에 포함하지 않습니다.

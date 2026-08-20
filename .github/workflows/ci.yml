@@ -136,6 +136,18 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose config --quiet
 
+      - name: Validate k6 scripts
+        run: |
+          for script in load-tests/*.js; do
+            script_name="${script#load-tests/}"
+
+            echo "Validating ${script}"
+            docker run --rm \
+              --volume "$PWD/load-tests:/scripts:ro" \
+              grafana/k6:2.2.0 \
+              inspect "/scripts/${script_name}"
+          done
+
       - name: Build Compose images
         run: docker compose build
 
@@ -165,6 +177,17 @@ jobs:
 
           echo "Application did not become healthy"
           exit 1
+
+      - name: Run k6 smoke test
+        run: |
+          docker run --rm \
+            --network host \
+            --volume "$PWD/load-tests:/scripts:ro" \
+            grafana/k6:2.2.0 \
+            run \
+            -e BASE_URL=http://127.0.0.1:8080 \
+            -e TARGET_HOST=app.platform.local \
+            /scripts/smoke.js
 
       - name: Check application response
         run: |
