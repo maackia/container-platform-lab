@@ -141,13 +141,13 @@ jobs:
           for script in load-tests/*.js; do
             script_name="${script#load-tests/}"
 
-            echo "Validatin ${script}"
+            echo "Validating ${script}"
             docker run --rm \
               --volume "$PWD/load-tests:/scripts:ro" \
               grafana/k6:2.2.0 \
               inspect "/scripts/${script_name}"
           done
-              
+
       - name: Build Compose images
         run: docker compose build
 
@@ -187,7 +187,7 @@ jobs:
             run \
             -e BASE_URL=http://127.0.0.1:8080 \
             -e TARGET_HOST=app.platform.local \
-            /scripts/smoke-test.js
+            /scripts/smoke.js
 
       - name: Check application response
         run: |

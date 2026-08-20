@@ -109,6 +109,18 @@ prometheus:
     serviceMonitorNamespaceSelector: {}
 ```
 
+부하 테스트 중 메트릭과 경고 상태의 변화를 더 빠르게 관찰하도록 scrape와 rule 평가 주기를 15초로 조정하고, 각 scrape 요청의 제한 시간은 10초로 둔다.
+
+```yaml
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    scrapeTimeout: 10s
+```
+
+주기를 줄이면 변화가 빨리 보이는 대신 Prometheus와 수집 대상의 CPU·네트워크 사용량이 늘어난다. 이 값은 단일 노드 학습 환경을 위한 설정이며, 운영 환경에서는 target 수와 리소스 사용량을 측정한 뒤 결정한다.
+
 리소스 요청과 제한도 함께 지정해 단일 노드 실습 환경에서 각 구성요소가 사용할 수 있는 범위를 명시한다.
 
 ## 4. 설치와 상태 확인
