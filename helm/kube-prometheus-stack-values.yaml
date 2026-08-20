@@ -73,6 +73,10 @@ grafana:
 
 prometheus:
   prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    scrapeTimeout: 10s
+
     retention: 24h
     retentionSize: 4GiB
 
