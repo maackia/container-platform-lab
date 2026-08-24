@@ -235,6 +235,8 @@ kubectl get endpointslice \
 
 ## 6. Prometheus 접속과 쿼리
 
+반복해서 사용하는 요청률·오류율·p95 쿼리는 Recording Rule로 저장하며, 최근 1시간의 SLI/SLO와 Error Budget 계산에도 재사용한다. 규칙 이름과 계산 방식은 [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)에 분리해 정리한다.
+
 Traefik Ingress와 UTM 포트 포워딩을 구성한 뒤 다음 주소로 접속한다.
 
 ```text
@@ -1002,9 +1004,12 @@ kube-prometheus-stack 설치
 → AlertmanagerConfig와 Secret 기반 Discord FIRING·RESOLVED 알림
 → Alertmanager Silence 기반 유지보수 알림 억제
 → critical source와 warning target의 namespace·service 기반 Inhibition
+→ 요청률·오류율·p95·가용 replica Recording Rule
+→ rolling 1h HTTP 성공률·지연 SLI와 Error Budget
+→ Grafana SLO·Error Budget row provisioning
 → Traefik 호스트 기반 모니터링 Ingress
 → UTM 단일 HTTP 포트 포워딩
 → Helm 및 Kubernetes 리소스 CI 검증
 ```
 
-다음 확장 단계에서는 알림 정책 테스트 자동화, 재현 가능한 부하 테스트, SLO와 recording rule을 다룰 수 있다.
+다음 확장 단계에서는 multi-window burn-rate alert와 알림 정책 회귀 테스트 자동화를 다룰 수 있다.

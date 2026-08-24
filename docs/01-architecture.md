@@ -101,7 +101,8 @@ Node.js Pod /metrics     Next.js Blog Pod /metrics
                 → Prometheus
                   ├→ Platform App Overview
                   ├→ Blog Overview
-                  └→ PrometheusRule → Alertmanager
+                  ├→ Recording Rule → SLI / SLO / Error Budget
+                  └→ PrometheusRule → Alertmanager → Discord
 ```
 
 `kube-prometheus-stack`은 Prometheus Operator, Prometheus, Grafana, Alertmanager, kube-state-metrics와 node-exporter를 Helm release로 관리한다.
@@ -135,4 +136,4 @@ Node.js Pod /metrics     Next.js Blog Pod /metrics
 └── compose.prod.yaml
 ```
 
-실행·운영 명령은 [운영 명령과 점검 방법](./02-operations.md), K3s 리소스는 [K3s 기반 Kubernetes 배포](./08-k3s.md), 블로그 흐름은 [Next.js 블로그 K3s 배포와 모니터링](./10-blog-k3s.md)에서 이어서 설명한다.
+실행·운영 명령은 [운영 명령과 점검 방법](./02-operations.md), K3s 리소스는 [K3s 기반 Kubernetes 배포](./08-k3s.md), 블로그 흐름은 [Next.js 블로그 K3s 배포와 모니터링](./10-blog-k3s.md), 신뢰성 지표는 [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)에서 이어서 설명한다.

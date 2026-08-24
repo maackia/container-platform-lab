@@ -18,7 +18,7 @@
 → 신뢰성 엔지니어링  ← 진행 중
 ```
 
-현재까지 애플리케이션을 컨테이너로 실행하는 단계에서 시작해 Kubernetes 배포, 메트릭 수집, 대시보드, 경고, Discord 통지, Silence와 Inhibition 검증까지 완료했습니다. k6로 정상·지연·오류 트래픽을 반복 재현하고 경고와 복구 알림까지 확인했으며, 다음에는 이 결과를 Recording Rule과 SLO로 연결합니다.
+현재까지 애플리케이션을 컨테이너로 실행하는 단계에서 시작해 Kubernetes 배포, 메트릭 수집, 대시보드, 경고, Discord 통지, Silence와 Inhibition 검증까지 완료했습니다. k6로 정상·지연·오류 트래픽을 반복 재현하고, Recording Rule과 rolling 1h SLI/SLO·Error Budget 대시보드까지 연결했습니다. 다음에는 Error Budget 소진 속도를 이용한 burn-rate alert로 확장합니다.
 
 ## 1. Container Foundation — 완료
 
@@ -69,9 +69,11 @@
 1. 완료 — k6로 smoke·baseline·지연·오류율 시나리오를 스크립트화했습니다.
 2. 완료 — Makefile 한 명령으로 시나리오를 실행하고 CI에서 스크립트와 smoke test를 검증합니다.
 3. 완료 — p95 지연과 HTTP 5xx 경고의 FIRING·RESOLVED Discord 알림을 반복 검증했습니다.
-4. 다음 — 자주 사용하는 PromQL을 Recording Rule로 계산해 대시보드와 경고에서 재사용합니다.
-5. 다음 — 가용성·오류율·지연 시간에 대한 SLI와 SLO를 정의합니다.
-6. 다음 — Error Budget 소진 속도를 대시보드와 경고로 확인합니다.
+4. 완료 — 자주 사용하는 PromQL을 Recording Rule로 계산해 대시보드와 경고에서 재사용합니다.
+5. 완료 — HTTP 성공률과 1초 이내 응답 비율에 대한 SLI와 SLO를 정의했습니다.
+6. 완료 — rolling 1h Error Budget을 계산하고 Grafana에서 시각화했습니다.
+7. 다음 — 여러 시간 창의 Error Budget 소진 속도를 비교하는 burn-rate alert를 구성합니다.
+8. 다음 — 부하 테스트와 경고 결과를 자동 회귀 테스트로 연결합니다.
 
 완료 기준은 다음과 같습니다.
 

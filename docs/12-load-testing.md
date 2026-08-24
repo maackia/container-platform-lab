@@ -335,17 +335,18 @@ error-rate
 → PlatformAppHighErrorRate FIRING / RESOLVED 확인
 ```
 
-## 11. 다음 단계
+## 11. SLI/SLO와 Error Budget 연결
 
-부하를 반복해서 재현할 수 있게 되었으므로 다음에는 관측 쿼리와 서비스 목표를 코드로 정리한다.
+부하 테스트 결과는 Recording Rule과 rolling 1h SLI/SLO·Error Budget으로 연결했다.
 
 ```text
 k6 반복 가능한 부하 시나리오
 → Recording Rule
 → SLI / SLO
 → Error Budget
-→ burn-rate alert
-→ 자동 경고 회귀 테스트
+→ Grafana Dashboard
 ```
 
-이 단계의 핵심은 높은 트래픽을 만드는 것 자체가 아니라, 같은 조건을 다시 실행하고 메트릭·대시보드·경고·복구가 의도대로 연결되는지 검증하는 것이다.
+baseline은 정상 상태의 기준선을, latency와 error-rate는 지연·성공률 Error Budget 소진을 재현한다. 계산식과 대시보드 구성은 [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)에 정리한다.
+
+다음 단계는 여러 시간 창에서 Error Budget 소진 속도를 비교하는 burn-rate alert와 자동 경고 회귀 테스트다. 이 단계의 핵심은 높은 트래픽을 만드는 것 자체가 아니라, 같은 조건을 다시 실행하고 메트릭·대시보드·경고·복구가 의도대로 연결되는지 검증하는 것이다.
