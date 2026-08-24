@@ -8,8 +8,8 @@ data:
         "name": "adjbc4s",
         "namespace": "default",
         "uid": "42385175-be5b-44ce-9623-03325173d55b",
-        "resourceVersion": "1786068340715003",
-        "generation": 11,
+        "resourceVersion": "1786071257710003",
+        "generation": 12,
         "creationTimestamp": "2026-07-30T08:41:11Z",
         "labels": {
           "grafana.app/deprecatedInternalID": "449399758823424"
@@ -18,11 +18,11 @@ data:
           "grafana.app/createdBy": "user:aft25zcsjc6psb",
           "grafana.app/managedBy": "classic-file-provisioning",
           "grafana.app/managerId": "sidecarProvider",
-          "grafana.app/sourceChecksum": "76292496b0195202ef7363899edc13d6",
+          "grafana.app/sourceChecksum": "64d240b392d0ac4f9a78c96a46d4e29b",
           "grafana.app/sourcePath": "/tmp/dashboards/platform-app-overview.json",
-          "grafana.app/sourceTimestamp": "1786068340000",
+          "grafana.app/sourceTimestamp": "1786071257000",
           "grafana.app/updatedBy": "access-policy:service",
-          "grafana.app/updatedTimestamp": "2026-08-07T02:05:40Z",
+          "grafana.app/updatedTimestamp": "2026-08-07T02:54:17Z",
           "grafana.app/folder": ""
         }
       },
@@ -115,6 +115,459 @@ data:
                           }
                         ]
                       }
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto",
+                    "orientation": "auto",
+                    "percentChangeColorMode": "standard",
+                    "reduceOptions": {
+                      "calcs": [
+                        "lastNotNull"
+                      ],
+                      "fields": "",
+                      "values": false
+                    },
+                    "showPercentChange": false,
+                    "textMode": "auto",
+                    "wideLayout": true
+                  }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-10": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "exemplar": false,
+                            "expr": "platform_app:sli_http_requests:increase1h",
+                            "instant": true,
+                            "legendFormat": "__auto",
+                            "range": false
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
+                }
+              },
+              "description": "",
+              "id": 10,
+              "links": [],
+              "title": "Requests (rolling 1h)",
+              "vizConfig": {
+                "group": "stat",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "fixedColor": "#ad46ff",
+                        "mode": "thresholds"
+                      },
+                      "decimals": 0,
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "yellow",
+                            "value": 0
+                          },
+                          {
+                            "color": "green",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      "unit": "short"
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto",
+                    "orientation": "auto",
+                    "percentChangeColorMode": "standard",
+                    "reduceOptions": {
+                      "calcs": [
+                        "lastNotNull"
+                      ],
+                      "fields": "",
+                      "values": false
+                    },
+                    "showPercentChange": false,
+                    "textMode": "auto",
+                    "wideLayout": true
+                  }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-11": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "exemplar": false,
+                            "expr": "(\n  100 * platform_app:sli_http_success_ratio:1h\n)\nand on (namespace, service, window)\n(\n  platform_app:sli_http_requests:increase1h > 0\n)",
+                            "instant": true,
+                            "legendFormat": "__auto",
+                            "range": false
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
+                }
+              },
+              "description": "",
+              "id": 11,
+              "links": [],
+              "title": "HTTP Success SLI (1h)",
+              "vizConfig": {
+                "group": "stat",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "thresholds"
+                      },
+                      "decimals": 2,
+                      "noValue": "No traffic",
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "red",
+                            "value": 0
+                          },
+                          {
+                            "color": "green",
+                            "value": 99
+                          }
+                        ]
+                      },
+                      "unit": "percent"
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto",
+                    "orientation": "auto",
+                    "percentChangeColorMode": "standard",
+                    "reduceOptions": {
+                      "calcs": [
+                        "lastNotNull"
+                      ],
+                      "fields": "",
+                      "values": false
+                    },
+                    "showPercentChange": false,
+                    "textMode": "auto",
+                    "wideLayout": true
+                  }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-12": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "exemplar": false,
+                            "expr": "(\n  100 * platform_app:sli_http_latency_le_1s_ratio:1h\n)\nand on (namespace, service, window)\n(\n  platform_app:sli_http_requests:increase1h > 0\n)",
+                            "instant": true,
+                            "legendFormat": "__auto",
+                            "range": false
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
+                }
+              },
+              "description": "",
+              "id": 12,
+              "links": [],
+              "title": "Latency ≤ 1s SLI (1h)",
+              "vizConfig": {
+                "group": "stat",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "thresholds"
+                      },
+                      "decimals": 2,
+                      "noValue": "No traffic",
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "red",
+                            "value": 0
+                          },
+                          {
+                            "color": "green",
+                            "value": 95
+                          }
+                        ]
+                      },
+                      "unit": "percent"
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto",
+                    "orientation": "auto",
+                    "percentChangeColorMode": "standard",
+                    "reduceOptions": {
+                      "calcs": [
+                        "lastNotNull"
+                      ],
+                      "fields": "",
+                      "values": false
+                    },
+                    "showPercentChange": false,
+                    "textMode": "auto",
+                    "wideLayout": true
+                  }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-13": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "exemplar": false,
+                            "expr": "100 * platform_app:slo_http_success_error_budget_remaining_ratio:1h",
+                            "instant": true,
+                            "legendFormat": "__auto",
+                            "range": false
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
+                }
+              },
+              "description": "",
+              "id": 13,
+              "links": [],
+              "title": "Success Error Budget Remaining",
+              "vizConfig": {
+                "group": "stat",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "thresholds"
+                      },
+                      "decimals": 1,
+                      "noValue": "No traffic",
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "red",
+                            "value": 0
+                          },
+                          {
+                            "color": "orange",
+                            "value": 0
+                          },
+                          {
+                            "color": "green",
+                            "value": 50
+                          }
+                        ]
+                      },
+                      "unit": "percent"
+                    },
+                    "overrides": []
+                  },
+                  "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "justifyMode": "auto",
+                    "orientation": "auto",
+                    "percentChangeColorMode": "standard",
+                    "reduceOptions": {
+                      "calcs": [
+                        "lastNotNull"
+                      ],
+                      "fields": "",
+                      "values": false
+                    },
+                    "showPercentChange": false,
+                    "textMode": "auto",
+                    "wideLayout": true
+                  }
+                },
+                "version": "13.1.1"
+              }
+            }
+          },
+          "panel-14": {
+            "kind": "Panel",
+            "spec": {
+              "data": {
+                "kind": "QueryGroup",
+                "spec": {
+                  "queries": [
+                    {
+                      "kind": "PanelQuery",
+                      "spec": {
+                        "hidden": false,
+                        "query": {
+                          "datasource": {
+                            "name": "prometheus"
+                          },
+                          "group": "prometheus",
+                          "kind": "DataQuery",
+                          "spec": {
+                            "editorMode": "code",
+                            "exemplar": false,
+                            "expr": "100 * platform_app:slo_http_latency_error_budget_remaining_ratio:1h",
+                            "instant": true,
+                            "legendFormat": "__auto",
+                            "range": false
+                          },
+                          "version": "v0"
+                        },
+                        "refId": "A"
+                      }
+                    }
+                  ],
+                  "queryOptions": {},
+                  "transformations": []
+                }
+              },
+              "description": "",
+              "id": 14,
+              "links": [],
+              "title": "Latency Error Budget Remaining",
+              "vizConfig": {
+                "group": "stat",
+                "kind": "VizConfig",
+                "spec": {
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "thresholds"
+                      },
+                      "decimals": 1,
+                      "noValue": "No traffic",
+                      "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                          {
+                            "color": "red",
+                            "value": 0
+                          },
+                          {
+                            "color": "orange",
+                            "value": 0
+                          },
+                          {
+                            "color": "green",
+                            "value": 50
+                          }
+                        ]
+                      },
+                      "unit": "percent"
                     },
                     "overrides": []
                   },
@@ -1097,124 +1550,217 @@ data:
           }
         },
         "layout": {
-          "kind": "GridLayout",
+          "kind": "RowsLayout",
           "spec": {
-            "items": [
+            "rows": [
               {
-                "kind": "GridLayoutItem",
+                "kind": "RowsLayoutRow",
                 "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-1"
+                  "collapse": false,
+                  "layout": {
+                    "kind": "GridLayout",
+                    "spec": {
+                      "items": [
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-1"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 0,
+                            "y": 0
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-9"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 12,
+                            "y": 0
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-3"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 0,
+                            "y": 8
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-8"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 12,
+                            "y": 8
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-2"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 0,
+                            "y": 16
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-7"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 12,
+                            "y": 16
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-4"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 0,
+                            "y": 24
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-5"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 12,
+                            "y": 24
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-6"
+                            },
+                            "height": 8,
+                            "width": 24,
+                            "x": 0,
+                            "y": 32
+                          }
+                        }
+                      ]
+                    }
                   },
-                  "height": 8,
-                  "width": 12,
-                  "x": 0,
-                  "y": 0
+                  "title": "Default"
                 }
               },
               {
-                "kind": "GridLayoutItem",
+                "kind": "RowsLayoutRow",
                 "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-9"
+                  "collapse": false,
+                  "layout": {
+                    "kind": "GridLayout",
+                    "spec": {
+                      "items": [
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-10"
+                            },
+                            "height": 8,
+                            "width": 8,
+                            "x": 0,
+                            "y": 0
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-11"
+                            },
+                            "height": 8,
+                            "width": 8,
+                            "x": 8,
+                            "y": 0
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-12"
+                            },
+                            "height": 8,
+                            "width": 8,
+                            "x": 16,
+                            "y": 0
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-13"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 0,
+                            "y": 8
+                          }
+                        },
+                        {
+                          "kind": "GridLayoutItem",
+                          "spec": {
+                            "element": {
+                              "kind": "ElementReference",
+                              "name": "panel-14"
+                            },
+                            "height": 8,
+                            "width": 12,
+                            "x": 12,
+                            "y": 8
+                          }
+                        }
+                      ]
+                    }
                   },
-                  "height": 8,
-                  "width": 12,
-                  "x": 12,
-                  "y": 0
-                }
-              },
-              {
-                "kind": "GridLayoutItem",
-                "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-3"
-                  },
-                  "height": 8,
-                  "width": 12,
-                  "x": 0,
-                  "y": 8
-                }
-              },
-              {
-                "kind": "GridLayoutItem",
-                "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-8"
-                  },
-                  "height": 8,
-                  "width": 12,
-                  "x": 12,
-                  "y": 8
-                }
-              },
-              {
-                "kind": "GridLayoutItem",
-                "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-2"
-                  },
-                  "height": 8,
-                  "width": 12,
-                  "x": 0,
-                  "y": 16
-                }
-              },
-              {
-                "kind": "GridLayoutItem",
-                "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-7"
-                  },
-                  "height": 8,
-                  "width": 12,
-                  "x": 12,
-                  "y": 16
-                }
-              },
-              {
-                "kind": "GridLayoutItem",
-                "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-4"
-                  },
-                  "height": 8,
-                  "width": 12,
-                  "x": 0,
-                  "y": 24
-                }
-              },
-              {
-                "kind": "GridLayoutItem",
-                "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-5"
-                  },
-                  "height": 8,
-                  "width": 12,
-                  "x": 12,
-                  "y": 24
-                }
-              },
-              {
-                "kind": "GridLayoutItem",
-                "spec": {
-                  "element": {
-                    "kind": "ElementReference",
-                    "name": "panel-6"
-                  },
-                  "height": 8,
-                  "width": 24,
-                  "x": 0,
-                  "y": 32
+                  "title": "SLO & Error Budget (rolling 1h)"
                 }
               }
             ]
