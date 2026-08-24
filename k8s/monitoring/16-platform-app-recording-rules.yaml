@@ -1,0 +1,114 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-app-recording-rules
+  namespace: platform-lab
+  labels:
+    release: monitoring
+
+spec:
+  groups:
+    - name: platform-app.recording-rules
+      rules:
+        # 상태 확인용 요청을 제외한 전체 애플리케이션 요청률
+        - record: platform_app:http_requests:rate5m
+          expr: |
+            sum(
+             rate(
+               app_http_requests_total{
+                 namespace="platform-lab",
+                 job="app",
+                 route!~"/health|/metrics"
+               }[5m]
+             )
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+
+        # HTTP 5xx 요청률
+        - record: platform_app:http_5xx_requests:rate5m
+          expr: |
+            sum(
+             rate(
+               app_http_requests_total{
+                 namespace="platform-lab",
+                 job="app",
+                 route!~"/health|/metrics",
+                 status_code=~"5.."
+               }[5m]
+             )
+            )
+            or vector(0)
+          labels:
+            namespace: platform-lab
+            service: platform-app
+
+        # 전체 요청 중 HTTP 5xx 요청 비율
+        # 결과 범위는 0~1, 별도로 백분율로 변환하지 않음
+        - record: platform_app:http_error_ratio:rate5m
+          expr: |
+            (
+              sum(
+                rate(
+                  app_http_requests_total{
+                    namespace="platform-lab",
+                    job="app",
+                    route!~"/health|/metrics",
+                    status_code=~"5.."
+                  }[5m]
+                )
+              )
+              or vector(0)
+            )
+            /
+            clamp_min(
+              (
+                sum(
+                  rate(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[5m]
+                  )
+                )
+                or vector(0)
+              ),
+              0.000001
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+
+        # Route별 최근 5분 기준 p95 응답 시간
+        - record: platform_app:http_request_duration_seconds:p95_5m
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum by (le, route) (
+                rate(
+                  app_http_request_duration_seconds_bucket{
+                    namespace="platform-lab",
+                    job="app",
+                    route!~"/health|/metrics"
+                  }[5m]
+                )
+              )
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+
+        # 현재 사용 가능한 애플리케이션 복제본 수
+        - record: platform_app:available_replicas
+          expr: |
+            max(
+              kube_deployment_status_replicas_available{
+                namespace="platform-lab",
+                deployment="app"
+              }
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app

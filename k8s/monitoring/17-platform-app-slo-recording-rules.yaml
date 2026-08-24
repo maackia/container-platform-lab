@@ -1,0 +1,154 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-app-slo-recording-rules
+  namespace: platform-lab
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: platform-app.slo-recording-rules
+      rules:
+        # 최근 1시간 동안 SLI 계산 대상이 된 전체 요청 수
+        - record: platform_app:sli_http_requests:increase1h
+          expr: |
+            sum(
+              increase(
+                app_http_requests_total{
+                  namespace="platform-lab",
+                  job="app",
+                  route!~"/health|/metrics"
+                }[1h]
+              )
+            )
+            or vector(0)
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            window: 1h
+
+        # 최근 1시간 동안 5xx가 아닌 요청의 비율
+        # 1 - (5xx 요청 수 / 전체 요청 수)
+        - record: platform_app:sli_http_success_ratio:1h
+          expr: |
+            1 -
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics",
+                      status_code=~"5.."
+                    }[1h]
+                  )
+                )
+                or vector(0)
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_requests_total{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[1h]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            window: 1h
+
+        # 최근 1시간 동안 1초 이내에 처리된 요청의 비율
+        # le="1" Bucket은 처리 시간이 1초 이하인 요청의 누적 개수를 나타낸다.
+        - record: platform_app:sli_http_latency_le_1s_ratio:1h
+          expr: |
+            (
+              sum(
+                increase(
+                  app_http_request_duration_seconds_bucket{
+                    namespace="platform-lab",
+                    job="app",
+                    route!~"/health|/metrics",
+                    le="1"
+                  }[1h]
+                )
+              )
+              or vector(0)
+            )
+            /
+            clamp_min(
+              (
+                sum(
+                  increase(
+                    app_http_request_duration_seconds_count{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[1h]
+                  )
+                )
+                or vector(0)
+              ),
+              1
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            window: 1h
+
+        # 성공률 SLO 99%를 기준으로 남은 Error Budget 비율
+        - record: platform_app:slo_http_success_error_budget_remaining_ratio:1h
+          expr: |
+            (
+              1 -
+              (
+                (
+                  1 - platform_app:sli_http_success_ratio:1h
+                )
+                /
+                0.01
+              )
+            )
+            and on (namespace, service, window)
+            (
+              platform_app:sli_http_requests:increase1h > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            window: 1h
+            objective: "0.99"
+
+        # 1초 이내 처리 비율 SLO 95%를 기준으로 남은 Error Budget 비율
+        - record: platform_app:slo_http_latency_error_budget_remaining_ratio:1h
+          expr: |
+            (
+              1 -
+              (
+                (
+                  1 - platform_app:sli_http_latency_le_1s_ratio:1h
+                )
+                /
+                0.05
+              )
+            )
+            and on (namespace, service, window)
+            (
+              platform_app:sli_http_requests:increase1h > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            window: 1h
+            objective: "0.95"
+            threshold: "1s"
