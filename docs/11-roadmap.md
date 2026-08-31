@@ -18,7 +18,7 @@
 → 신뢰성 엔지니어링  ← 진행 중
 ```
 
-현재까지 애플리케이션을 컨테이너로 실행하는 단계에서 시작해 Kubernetes 배포, 메트릭 수집, 대시보드, 경고, Discord 통지, Silence와 Inhibition 검증까지 완료했습니다. k6로 정상·지연·오류 트래픽을 반복 재현하고, Recording Rule과 rolling 1h SLI/SLO·Error Budget 대시보드까지 연결했습니다. 다음에는 Error Budget 소진 속도를 이용한 burn-rate alert로 확장합니다.
+현재까지 애플리케이션을 컨테이너로 실행하는 단계에서 시작해 Kubernetes 배포, 메트릭 수집, 대시보드, 경고, Discord 통지, Silence와 Inhibition 검증까지 완료했습니다. k6로 정상·지연·오류 트래픽을 반복 재현하고, Recording Rule과 rolling 1h SLI/SLO·Error Budget에서 multi-window Burn Rate 경고까지 연결했습니다. 다음에는 이 검증 흐름을 자동 회귀 테스트로 확장합니다.
 
 ## 1. Container Foundation — 완료
 
@@ -72,8 +72,9 @@
 4. 완료 — 자주 사용하는 PromQL을 Recording Rule로 계산해 대시보드와 경고에서 재사용합니다.
 5. 완료 — HTTP 성공률과 1초 이내 응답 비율에 대한 SLI와 SLO를 정의했습니다.
 6. 완료 — rolling 1h Error Budget을 계산하고 Grafana에서 시각화했습니다.
-7. 다음 — 여러 시간 창의 Error Budget 소진 속도를 비교하는 burn-rate alert를 구성합니다.
-8. 다음 — 부하 테스트와 경고 결과를 자동 회귀 테스트로 연결합니다.
+7. 완료 — 5분·30분·1시간·6시간의 Error Budget 소진 속도를 계산하고 Fast Burn·Sustained Burn 경고를 구성했습니다.
+8. 완료 — Grafana에 multi-window Burn Rate를 시각화하고 Discord FIRING·RESOLVED를 검증했습니다.
+9. 다음 — 부하 테스트와 경고 결과를 자동 회귀 테스트로 연결합니다.
 
 완료 기준은 다음과 같습니다.
 
@@ -81,6 +82,7 @@
 한 명령으로 부하 시나리오 실행
 → Prometheus에서 Recording Rule 확인
 → Grafana에서 SLO와 Error Budget 확인
+→ Multi-window Burn Rate와 경고 상태 확인
 → 의도한 경고만 Discord로 전달
 → 부하 종료 후 RESOLVED 확인
 ```

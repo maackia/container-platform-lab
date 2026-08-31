@@ -23,8 +23,8 @@ Mac browser :8081
 
 Application /metrics
 → ServiceMonitor → Prometheus Operator → Prometheus
-├→ Recording Rule → SLI / SLO / Error Budget → Grafana
-└→ PrometheusRule → Alertmanager → Discord
+├→ Recording Rule → SLI / SLO / Error Budget / Burn Rate → Grafana
+└→ Multi-window PrometheusRule → Alertmanager → Discord
 
 GitHub Actions
 → Compose integration test
@@ -82,7 +82,7 @@ kubectl get pods -n monitoring
 - RED 메트릭, 경고 규칙, Discord FIRING·RESOLVED 알림
 - Alertmanager Silence와 critical → warning Inhibition
 - k6 smoke·baseline·latency·error-rate 시나리오
-- Recording Rule, SLI/SLO와 rolling 1h Error Budget 대시보드
+- Recording Rule, SLI/SLO, rolling 1h Error Budget와 multi-window Burn Rate 경고
 
 ## 문서
 
@@ -93,6 +93,8 @@ kubectl get pods -n monitoring
 - [Kubernetes 모니터링과 알림](./docs/09-kubernetes-monitoring.md)
 - [k6 부하 테스트와 경고 검증](./docs/12-load-testing.md)
 - [Recording Rule과 SLI/SLO·Error Budget](./docs/13-sli-slo-error-budget.md)
+- [Multi-window Burn Rate 경고](./docs/14-multi-window-burn-rate.md)
+- [VM 시간 동기화와 모니터링 복구](./docs/15-vm-time-sync-and-monitoring-recovery.md)
 
 ## 보안 원칙
 
