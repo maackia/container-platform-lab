@@ -1,0 +1,540 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-app-burn-rate-recording-rules
+  namespace: platform-lab
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: platform-app.burn-rate-recording-rules
+      rules:
+        # HTTP 성공률 SLO: 허용 오류율 1%
+        # Burn rate = 실제 5xx 비율 / 0.01
+
+        - record: platform_app:slo_http_success_burn_rate:5m
+          expr: |
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics",
+                      status_code=~"5.."
+                    }[5m]
+                  )
+                )
+                or vector(0)
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_requests_total{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[5m]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.01
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[5m]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-success
+            objective: "0.99"
+            window: 5m
+
+        - record: platform_app:slo_http_success_burn_rate:30m
+          expr: |
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics",
+                      status_code=~"5.."
+                    }[30m]
+                  )
+                )
+                or vector(0)
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_requests_total{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[30m]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.01
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[30m]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-success
+            objective: "0.99"
+            window: 30m
+
+        - record: platform_app:slo_http_success_burn_rate:1h
+          expr: |
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics",
+                      status_code=~"5.."
+                    }[1h]
+                  )
+                )
+                or vector(0)
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_requests_total{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[1h]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.01
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[1h]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-success
+            objective: "0.99"
+            window: 1h
+
+        - record: platform_app:slo_http_success_burn_rate:6h
+          expr: |
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics",
+                      status_code=~"5.."
+                    }[6h]
+                  )
+                )
+                or vector(0)
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_requests_total{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[6h]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.01
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_requests_total{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[6h]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-success
+            objective: "0.99"
+            window: 6h
+
+        # 지연시간 SLO: 95%가 1초 이내, 허용 위반율 5%
+        # 느린 요청 = 전체 요청 - le="1" Bucket 요청
+
+        - record: platform_app:slo_http_latency_burn_rate:5m
+          expr: |
+            (
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[5m]
+                    )
+                  )
+                  or vector(0)
+                )
+                -
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_bucket{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics",
+                        le="1"
+                      }[5m]
+                    )
+                  )
+                  or vector(0)
+                ),
+                0
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[5m]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.05
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_request_duration_seconds_count{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[5m]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-latency
+            objective: "0.95"
+            threshold: "1s"
+            window: 5m
+
+        - record: platform_app:slo_http_latency_burn_rate:30m
+          expr: |
+            (
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[30m]
+                    )
+                  )
+                  or vector(0)
+                )
+                -
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_bucket{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics",
+                        le="1"
+                      }[30m]
+                    )
+                  )
+                  or vector(0)
+                ),
+                0
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[30m]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.05
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_request_duration_seconds_count{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[30m]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-latency
+            objective: "0.95"
+            threshold: "1s"
+            window: 30m
+
+        - record: platform_app:slo_http_latency_burn_rate:1h
+          expr: |
+            (
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[1h]
+                    )
+                  )
+                  or vector(0)
+                )
+                -
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_bucket{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics",
+                        le="1"
+                      }[1h]
+                    )
+                  )
+                  or vector(0)
+                ),
+                0
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[1h]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.05
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_request_duration_seconds_count{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[1h]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-latency
+            objective: "0.95"
+            threshold: "1s"
+            window: 1h
+
+        - record: platform_app:slo_http_latency_burn_rate:6h
+          expr: |
+            (
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[6h]
+                    )
+                  )
+                  or vector(0)
+                )
+                -
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_bucket{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics",
+                        le="1"
+                      }[6h]
+                    )
+                  )
+                  or vector(0)
+                ),
+                0
+              )
+              /
+              clamp_min(
+                (
+                  sum(
+                    increase(
+                      app_http_request_duration_seconds_count{
+                        namespace="platform-lab",
+                        job="app",
+                        route!~"/health|/metrics"
+                      }[6h]
+                    )
+                  )
+                  or vector(0)
+                ),
+                1
+              )
+            )
+            /
+            0.05
+            and on()
+            (
+              (
+                sum(
+                  increase(
+                    app_http_request_duration_seconds_count{
+                      namespace="platform-lab",
+                      job="app",
+                      route!~"/health|/metrics"
+                    }[6h]
+                  )
+                )
+                or vector(0)
+              ) > 0
+            )
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            indicator: http-latency
+            objective: "0.95"
+            threshold: "1s"
+            window: 6h

@@ -1,0 +1,106 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-app-burn-rate-alerts
+  namespace: platform-lab
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: platform-app.burn-rate-alerts
+      rules:
+        # 성공률 Error Budget을 매우 빠르게 소진하는 경우
+        - alert: PlatformAppHttpSuccessFastBurn
+          expr: |
+            (
+              platform_app:slo_http_success_burn_rate:1h > 14.4
+            )
+            and on(namespace, service, indicator, objective)
+            (
+              platform_app:slo_http_success_burn_rate:5m > 14.4
+            )
+          for: 1m
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            severity: critical
+            slo: http-success
+            window: 1h-and-5m
+          annotations:
+            summary: Platform application is rapidly consuming its HTTP success error budget
+            description: >-
+              HTTP success burn rate exceeded 14.4x in both the
+              1h and 5m windows. Long-window burn rate:
+              {{ printf "%.2f" $value }}x.
+
+        # 성공률 Error Budget을 지속적으로 소진하는 경우
+        - alert: PlatformAppHttpSuccessSustainedBurn
+          expr: |
+            (
+              platform_app:slo_http_success_burn_rate:6h > 6
+            )
+            and on(namespace, service, indicator, objective)
+            (
+              platform_app:slo_http_success_burn_rate:30m > 6
+            )
+          for: 1m
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            severity: warning
+            slo: http-success
+            window: 6h-and-30m
+          annotations:
+            summary: Platform application is steadily consuming its HTTP success error budget
+            description: >-
+              HTTP success burn rate exceeded 6x in both the
+              6h and 30m windows. Long-window burn rate:
+              {{ printf "%.2f" $value }}x.
+
+        # 지연시간 Error Budget을 매우 빠르게 소진하는 경우
+        - alert: PlatformAppHttpLatencyFastBurn
+          expr: |
+            (
+              platform_app:slo_http_latency_burn_rate:1h > 14.4
+            )
+            and on(namespace, service, indicator, objective)
+            (
+              platform_app:slo_http_latency_burn_rate:5m > 14.4
+            )
+          for: 1m
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            severity: critical
+            slo: http-latency
+            window: 1h-and-5m
+          annotations:
+            summary: Platform application is rapidly consuming its latency error budget
+            description: >-
+              HTTP latency burn rate exceeded 14.4x in both the
+              1h and 5m windows. Long-window burn rate:
+              {{ printf "%.2f" $value }}x.
+
+        # 지연시간 Error Budget을 지속적으로 소진하는 경우
+        - alert: PlatformAppHttpLatencySustainedBurn
+          expr: |
+            (
+              platform_app:slo_http_latency_burn_rate:6h > 6
+            )
+            and on(namespace, service, indicator, objective)
+            (
+              platform_app:slo_http_latency_burn_rate:30m > 6
+            )
+          for: 1m
+          labels:
+            namespace: platform-lab
+            service: platform-app
+            severity: warning
+            slo: http-latency
+            window: 6h-and-30m
+          annotations:
+            summary: Platform application is steadily consuming its latency error budget
+            description: >-
+              HTTP latency burn rate exceeded 6x in both the
+              6h and 30m windows. Long-window burn rate:
+              {{ printf "%.2f" $value }}x.
