@@ -170,6 +170,10 @@ Burn Rate 계산은 다음 구조다.
 | `platform_app:slo_http_latency_burn_rate:1h` | 1시간 | 지연 Fast Burn의 긴 창 |
 | `platform_app:slo_http_latency_burn_rate:6h` | 6시간 | 지연 Sustained Burn의 긴 창 |
 
+여기서 `5m`, `30m`, `1h`, `6h`는 해당 시간이 모두 지나야 계산을 시작한다는 뜻이 아니다. PromQL의 `[6h]`는 평가 시점으로부터 최대 6시간 전까지 존재하는 샘플을 조회하는 범위다. 시계열이 생성된 지 6시간이 되지 않았거나 해당 구간에 요청이 일부만 있어도, 계산에 필요한 샘플이 있으면 `increase(...[6h])`는 그 샘플을 사용해 결과를 만든다.
+
+따라서 이전 정상 요청이 없는 상태에서 실패 요청만 발생시키면 짧은 실험에서도 6시간 Burn Rate가 높게 계산될 수 있다. 반대로 6시간 범위에 정상 요청이 많이 남아 있으면 같은 테스트를 실행해도 6시간 값은 희석된다.
+
 Recording Rule의 `labels`에는 대시보드와 경고 조합에 사용할 정보를 명시한다.
 
 ```yaml
@@ -196,6 +200,8 @@ AND
 |---|---:|---:|---:|---:|---|
 | Fast Burn | 1시간 | 5분 | 14.4x | 1분 | critical |
 | Sustained Burn | 6시간 | 30분 | 6x | 1분 | warning |
+
+`Sustained Burn`은 Fast Burn보다 긴 `6h + 30m` 창과 낮은 `6x` 임계값을 사용하는 경고 경로의 이름이다. 현재 규칙은 6시간 동안 장애가 계속되었는지 또는 6시간 분량의 데이터가 모두 쌓였는지를 별도로 검사하지 않는다. 그러므로 이름의 `Sustained`를 “장애가 실제로 6시간 지속된 뒤에만 발생한다”는 의미로 해석하지 않는다.
 
 성공률과 지연에 각각 같은 창 조합을 적용해 총 네 개 경고를 만든다.
 
@@ -292,13 +298,13 @@ baseline은 정상 트래픽에서 성공률과 지연 Burn Rate가 0x에 가까
 make load-test-baseline
 ```
 
-baseline이 만든 정상 요청은 1시간 Recording Rule 창에 남는다. 따라서 Fast Burn 재현이 목적이라면 baseline 직후 latency를 연속해서 실행하지 않는다. 정상 요청이 섞이면 나쁜 요청 비율이 희석되어 1시간 Burn Rate가 `14.4x`를 넘지 못할 수 있다.
+baseline이 만든 정상 요청은 1시간과 6시간 Recording Rule 창에 남는다. 따라서 Burn Rate 경고 재현이 목적이라면 baseline 직후 latency 또는 error-rate를 연속해서 실행하지 않는다. 정상 요청이 섞이면 나쁜 요청 비율이 희석되어 각 시간 창의 Burn Rate가 임계값을 넘지 못할 수 있다.
 
-### Fast Burn 검증
+### Burn Rate 경고 검증
 
-Fast Burn 시나리오는 이전 사용자 요청이 1시간 창에서 빠진 상태에서 각각 독립적으로 실행한다. latency를 먼저 실행하거나, baseline 실행 후 최소 1시간이 지나 정상 요청이 창에서 제외된 것을 확인한다.
+각 부하 테스트는 이전 사용자 요청의 영향을 구분할 수 있도록 독립적으로 실행한다. Fast Burn만 재현할 때는 최근 1시간 이력을 확인하고, Fast Burn과 Sustained Burn을 함께 재현할 때는 최근 6시간 이력도 확인한다. baseline 직후 latency 또는 error-rate를 연속 실행하면 정상 요청이 나쁜 요청 비율을 희석할 수 있다.
 
-테스트 전에 최근 1시간 사용자 요청 수를 조회한다.
+테스트 전에 최근 1시간과 6시간의 사용자 요청 수를 조회한다.
 
 ```promql
 sum(increase(app_http_requests_total{
@@ -308,32 +314,52 @@ sum(increase(app_http_requests_total{
 }[1h]))
 ```
 
-결과가 0이거나 시계열이 없으면 latency 시나리오를 실행한다.
+```promql
+sum(increase(app_http_requests_total{
+  namespace="platform-lab",
+  job="app",
+  route!~"/health|/metrics"
+}[6h]))
+```
+
+최근 1시간 결과가 0이거나 시계열이 없으면 Fast Burn을 깨끗한 조건에서 재현할 수 있다. 최근 6시간 결과도 0이거나 시계열이 없으면 Sustained Burn까지 같은 조건에서 재현할 수 있다. 결과가 0이 아니면 정상 요청과 실패 요청의 비율에 따라 실제 Burn Rate와 발생 경고가 달라진다.
+
+지연 시나리오를 실행한다.
 
 ```bash
 make load-test-latency
 ```
 
-관측 창의 사용자 요청이 모두 `/slow`이고 각 응답이 1초를 초과하면 지연 Burn Rate는 약 20x가 된다. 1시간과 5분 창이 모두 14.4x를 넘고 1분 동안 유지되면 `PlatformAppHttpLatencyFastBurn`이 Firing된다.
+관측 창의 사용자 요청이 모두 `/slow`이고 각 응답이 1초를 초과하면 지연 Burn Rate는 약 20x가 된다.
 
-오류율 Fast Burn도 다른 시나리오의 요청이 1시간 창에서 빠진 상태에서 독립적으로 실행한다. 오류율 시나리오는 HTTP 500 응답을 지속해서 발생시킨다.
+```text
+1h와 5m가 모두 14.4x 초과
+→ 1분 유지 후 PlatformAppHttpLatencyFastBurn Firing
+
+6h와 30m가 모두 6x 초과
+→ 1분 유지 후 PlatformAppHttpLatencySustainedBurn Firing
+```
+
+6시간 범위에 이전 정상 요청이 없다면 짧은 k6 실행에서도 두 조건을 동시에 만족할 수 있다. 6시간 분량의 데이터가 쌓일 때까지 기다릴 필요는 없다.
+
+오류율 Burn Rate 경고도 다른 시나리오와 분리해서 실행한다. 오류율 시나리오는 HTTP 500 응답을 지속해서 발생시킨다.
 
 ```bash
 make load-test-error-rate
 ```
 
-관측 창의 사용자 요청이 모두 5xx라면 성공률 Burn Rate는 최대 100x가 된다.
+관측 창의 사용자 요청이 모두 5xx라면 성공률 Burn Rate는 최대 100x가 된다. 이전 정상 요청이 없는 범위에서는 `PlatformAppHttpSuccessFastBurn`과 `PlatformAppHttpSuccessSustainedBurn`이 모두 1분 후 Firing될 수 있다.
 
-대표 검증에서는 다음 흐름을 확인했다.
+Fast Burn과 Sustained Burn을 함께 재현할 때는 다음 흐름을 확인한다.
 
 ```text
 k6 latency 또는 error-rate 실행
-→ Burn Rate 임계값 초과
-→ Prometheus Pending
-→ 1분 유지 후 Firing
-→ Discord FIRING 수신
+→ 각 시간 창의 Burn Rate 임계값 초과
+→ Fast Burn 및 조건을 만족한 Sustained Burn이 Prometheus Pending
+→ 1분 유지 후 각각 Firing
+→ Discord에서 각 FIRING 수신
 → 테스트 종료와 관측 창 경과
-→ Discord RESOLVED 수신
+→ Discord에서 각 RESOLVED 수신
 ```
 
 기존 `PlatformAppHighP95Latency` 또는 `PlatformAppHighErrorRate` 경고와 Burn Rate 경고는 목적이 다르므로 함께 유지한다.
@@ -379,6 +405,8 @@ sum(increase(app_http_requests_total{
 → Discord FIRING·RESOLVED 확인
 ```
 
-Sustained Burn은 6시간 창을 사용하므로 짧은 수동 실습에서 즉시 재현하기 어렵다. 현재는 규칙 로딩과 시계열 계산을 확인했고, 장시간 회귀 검증은 후속 자동화 범위로 남긴다.
+현재 Sustained Burn 규칙의 `[6h]`는 최대 조회 범위이며 최소 관측 시간을 강제하지 않는다. 이전 정상 요청이 없는 상태에서는 짧은 수동 실습에서도 Fast Burn과 Sustained Burn이 함께 발생할 수 있다. 이는 현재 규칙 정의에 따른 정상 계산 결과이며, 문서의 경고 재현 절차도 이 동작을 기준으로 한다.
+
+실제 운영 환경에서 요청이 몇 건 없는 상태의 급격한 비율 변화를 걸러야 한다면, 경고식에 최소 요청량과 같은 트래픽 충분성 조건을 추가할 수 있다. 이 조건은 알림 민감도와 탐지 누락 가능성을 함께 바꾸므로 현재 문서화 범위에는 포함하지 않고 후속 규칙 개선 사항으로 남긴다.
 
 다음 단계는 k6 실행, Prometheus 상태 조회와 알림 결과 확인을 하나의 반복 가능한 회귀 테스트로 연결하는 것이다.
