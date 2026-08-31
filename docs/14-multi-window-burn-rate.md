@@ -284,21 +284,39 @@ k8s/monitoring/11-platform-app-dashboard-configmap.yaml
 
 ## 9. k6 검증
 
-먼저 정상 트래픽에서 성공률 Burn Rate가 0x에 가까운지 확인한다.
+### 정상 상태 관찰
+
+baseline은 정상 트래픽에서 성공률과 지연 Burn Rate가 0x에 가까운지 관찰하는 별도 실험이다.
 
 ```bash
 make load-test-baseline
 ```
 
-지연 시나리오는 1초 초과 요청을 지속해서 발생시킨다.
+baseline이 만든 정상 요청은 1시간 Recording Rule 창에 남는다. 따라서 Fast Burn 재현이 목적이라면 baseline 직후 latency를 연속해서 실행하지 않는다. 정상 요청이 섞이면 나쁜 요청 비율이 희석되어 1시간 Burn Rate가 `14.4x`를 넘지 못할 수 있다.
+
+### Fast Burn 검증
+
+Fast Burn 시나리오는 이전 사용자 요청이 1시간 창에서 빠진 상태에서 각각 독립적으로 실행한다. latency를 먼저 실행하거나, baseline 실행 후 최소 1시간이 지나 정상 요청이 창에서 제외된 것을 확인한다.
+
+테스트 전에 최근 1시간 사용자 요청 수를 조회한다.
+
+```promql
+sum(increase(app_http_requests_total{
+  namespace="platform-lab",
+  job="app",
+  route!~"/health|/metrics"
+}[1h]))
+```
+
+결과가 0이거나 시계열이 없으면 latency 시나리오를 실행한다.
 
 ```bash
 make load-test-latency
 ```
 
-현재 `/slow` 응답이 모두 1초를 초과하면 지연 Burn Rate는 약 20x가 된다. 1시간과 5분 창이 모두 14.4x를 넘고 1분 동안 유지되면 `PlatformAppHttpLatencyFastBurn`이 Firing된다.
+관측 창의 사용자 요청이 모두 `/slow`이고 각 응답이 1초를 초과하면 지연 Burn Rate는 약 20x가 된다. 1시간과 5분 창이 모두 14.4x를 넘고 1분 동안 유지되면 `PlatformAppHttpLatencyFastBurn`이 Firing된다.
 
-오류율 시나리오는 HTTP 500 응답을 지속해서 발생시킨다.
+오류율 Fast Burn도 다른 시나리오의 요청이 1시간 창에서 빠진 상태에서 독립적으로 실행한다. 오류율 시나리오는 HTTP 500 응답을 지속해서 발생시킨다.
 
 ```bash
 make load-test-error-rate
