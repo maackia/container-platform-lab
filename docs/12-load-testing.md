@@ -349,4 +349,6 @@ k6 반복 가능한 부하 시나리오
 
 baseline은 정상 상태의 기준선을, latency와 error-rate는 지연·성공률 Error Budget 소진을 재현한다. 계산식과 대시보드 구성은 [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)에 정리한다.
 
-다음 단계는 여러 시간 창에서 Error Budget 소진 속도를 비교하는 burn-rate alert와 자동 경고 회귀 테스트다. 이 단계의 핵심은 높은 트래픽을 만드는 것 자체가 아니라, 같은 조건을 다시 실행하고 메트릭·대시보드·경고·복구가 의도대로 연결되는지 검증하는 것이다.
+여러 시간 창에서 Error Budget 소진 속도를 비교하는 Burn Rate Recording Rule과 경고도 같은 시나리오로 검증했다. 계산 방식과 Fast Burn·Sustained Burn 정책은 [Multi-window Burn Rate 경고](./14-multi-window-burn-rate.md)에 정리한다.
+
+다음 단계는 k6 실행과 Prometheus·Alertmanager 상태 확인을 자동 경고 회귀 테스트로 연결하는 것이다. 핵심은 높은 트래픽을 만드는 것 자체가 아니라, 같은 조건을 다시 실행하고 메트릭·대시보드·경고·복구가 의도대로 연결되는지 자동으로 판정하는 것이다.

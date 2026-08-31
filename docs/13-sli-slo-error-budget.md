@@ -30,7 +30,7 @@ Recording Rule은 긴 PromQL을 대시보드와 경고마다 다시 계산하지
 
 ## 2. 리소스 구성
 
-일반 운영 지표와 SLO 계산을 두 파일로 분리한다.
+일반 운영 지표, SLO 계산과 후속 Burn Rate 경고를 역할별 파일로 분리한다.
 
 ```text
 k8s/monitoring/16-platform-app-recording-rules.yaml
@@ -38,9 +38,15 @@ k8s/monitoring/16-platform-app-recording-rules.yaml
 
 k8s/monitoring/17-platform-app-slo-recording-rules.yaml
 → 최근 1시간 요청 수, 성공률 SLI, 지연 SLI, 남은 Error Budget
+
+k8s/monitoring/18-platform-app-burn-rate-recording-rules.yaml
+→ 5m·30m·1h·6h 성공률·지연 Burn Rate
+
+k8s/monitoring/19-platform-app-burn-rate-alerts.yaml
+→ Fast Burn·Sustained Burn 경고
 ```
 
-두 `PrometheusRule`에는 현재 Prometheus가 선택할 수 있도록 `release: monitoring` 라벨을 지정한다.
+각 `PrometheusRule`에는 현재 Prometheus가 선택할 수 있도록 `release: monitoring` 라벨을 지정한다.
 
 ```yaml
 metadata:
@@ -251,7 +257,7 @@ make load-test-error-rate
 
 rolling 1h 창에는 이전 테스트의 요청도 함께 남는다. 시나리오가 끝난 직후 값이 즉시 100%로 복구되지 않는 것은 정상이며, 오래된 표본이 1시간 창에서 빠지면서 점차 회복한다.
 
-## 10. 현재 범위와 다음 단계
+## 10. Burn Rate로 확장
 
 현재 완료 범위는 다음과 같다.
 
@@ -264,12 +270,12 @@ rolling 1h 창에는 이전 테스트의 요청도 함께 남는다. 시나리�
 → k6 정상·지연·오류 시나리오로 변화 확인
 ```
 
-다음 단계는 단순히 Error Budget이 음수가 된 뒤 알리는 것이 아니라, 서로 다른 시간 창의 소진 속도를 비교하는 burn-rate alert다.
+Error Budget Remaining은 관측 창에서 허용량을 얼마나 사용했는지 보여주지만, 소진 속도가 갑자기 빨라졌는지는 직접 알려주지 않는다. 이를 보완하기 위해 서로 다른 시간 창의 소진 속도를 비교하는 Burn Rate 경고로 확장했다.
 
 ```text
 짧은 창의 빠른 소진
 + 긴 창의 지속적인 소진
-→ multi-window burn-rate alert
+→ multi-window Burn Rate alert
 ```
 
-이 방식은 일시적인 잡음을 줄이면서 사용자가 실제로 체감할 가능성이 큰 SLO 위반을 더 빠르게 탐지하는 데 목적이 있다.
+이 방식은 일시적인 잡음을 줄이면서 사용자가 실제로 체감할 가능성이 큰 SLO 위반을 더 빠르게 탐지하는 데 목적이 있다. 계산식, 시간 창, 경고 임계값과 검증 결과는 [Multi-window Burn Rate 경고](./14-multi-window-burn-rate.md)에 정리한다.

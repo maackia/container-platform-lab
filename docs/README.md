@@ -19,6 +19,8 @@
 11. [학습 로드맵과 다음 단계](./11-roadmap.md)
 12. [k6 부하 테스트와 경고 검증](./12-load-testing.md)
 13. [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)
+14. [Multi-window Burn Rate 경고](./14-multi-window-burn-rate.md)
+15. [VM 시간 동기화와 모니터링 복구](./15-vm-time-sync-and-monitoring-recovery.md)
 
 ## 참고 예제
 

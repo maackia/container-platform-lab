@@ -1,6 +1,6 @@
 # Kubernetes 모니터링과 알림
 
-이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션과 `blog` 서비스의 메트릭을 수집·시각화하며 replica 장애와 HTTP 오류율·p95 응답 지연을 경고로 전달한 과정을 정리한다.
+이 문서는 단일 노드 K3s 환경에 `kube-prometheus-stack`을 설치하고, `platform-lab` 애플리케이션과 `blog` 서비스의 메트릭을 수집·시각화하며 replica 장애, HTTP 오류율·p95 응답 지연과 SLO Burn Rate를 경고로 전달한 과정을 정리한다.
 
 구성 범위는 다음과 같다.
 
@@ -235,7 +235,7 @@ kubectl get endpointslice \
 
 ## 6. Prometheus 접속과 쿼리
 
-반복해서 사용하는 요청률·오류율·p95 쿼리는 Recording Rule로 저장하며, 최근 1시간의 SLI/SLO와 Error Budget 계산에도 재사용한다. 규칙 이름과 계산 방식은 [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)에 분리해 정리한다.
+반복해서 사용하는 요청률·오류율·p95 쿼리는 Recording Rule로 저장하며, 최근 1시간의 SLI/SLO와 Error Budget 계산에도 재사용한다. 규칙 이름과 계산 방식은 [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)에, 여러 시간 창의 소진 속도와 경고는 [Multi-window Burn Rate 경고](./14-multi-window-burn-rate.md)에 분리해 정리한다.
 
 Traefik Ingress와 UTM 포트 포워딩을 구성한 뒤 다음 주소로 접속한다.
 
@@ -929,6 +929,8 @@ timedatectl status
 
 `System clock synchronized: yes`와 `NTP service: active`를 확인한다. timezone 표기보다 실제 시계가 어긋났는지가 중요하다.
 
+Mac 절전이나 VM 일시 정지 뒤 실제 시간이 어긋났다면 NTP 재동기화와 모니터링 Pod 복구 절차를 [VM 시간 동기화와 모니터링 복구](./15-vm-time-sync-and-monitoring-recovery.md)에서 확인한다.
+
 ### 애플리케이션 경고가 계속 Inactive인 경우
 
 `Inactive`는 규칙 로딩 실패가 아니라 현재 표현식의 조건이 거짓이라는 뜻일 수 있다. 먼저 실제 replica 수와 규칙의 쿼리 결과를 확인한다.
@@ -1007,9 +1009,12 @@ kube-prometheus-stack 설치
 → 요청률·오류율·p95·가용 replica Recording Rule
 → rolling 1h HTTP 성공률·지연 SLI와 Error Budget
 → Grafana SLO·Error Budget row provisioning
+→ 5m·30m·1h·6h 성공률·지연 Burn Rate Recording Rule
+→ Fast Burn·Sustained Burn 경고와 Discord FIRING·RESOLVED 검증
+→ Grafana multi-window Burn Rate row provisioning
 → Traefik 호스트 기반 모니터링 Ingress
 → UTM 단일 HTTP 포트 포워딩
 → Helm 및 Kubernetes 리소스 CI 검증
 ```
 
-다음 확장 단계에서는 multi-window burn-rate alert와 알림 정책 회귀 테스트 자동화를 다룰 수 있다.
+다음 확장 단계에서는 k6 부하 시나리오와 알림 정책 결과를 자동 회귀 테스트로 연결할 수 있다.

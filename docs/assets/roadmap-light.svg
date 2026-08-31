@@ -127,7 +127,7 @@
     <text x="22" y="104" class="card-copy">관측 데이터를 신뢰성 목표와</text>
     <text x="22" y="124" class="card-copy">반복 가능한 검증으로 연결</text>
     <circle cx="27" cy="163" r="5" fill="#0284c7"/><text x="43" y="168" class="item">Reproducible load tests</text>
-    <circle cx="27" cy="201" r="5" fill="#0284c7"/><text x="43" y="206" class="item">Recording rules · SLO</text>
+    <circle cx="27" cy="201" r="5" fill="#0284c7"/><text x="43" y="206" class="item">SLO · Burn-rate alerts</text>
     <circle cx="27" cy="239" r="5" fill="#0284c7"/><text x="43" y="244" class="item">Alert regression tests</text>
   </g>
 
@@ -176,7 +176,7 @@
   <g transform="translate(48 815)">
     <rect width="1344" height="52" rx="15" fill="#f0f9ff" stroke="#38bdf8" stroke-opacity="0.5"/>
     <text x="20" y="21" class="focus-kicker">CURRENT FOCUS</text>
-    <text x="20" y="41" class="focus-copy">부하를 재현하고 SLO·Recording Rule·경고 회귀 테스트로 신뢰성을 수치화합니다.</text>
+    <text x="20" y="41" class="focus-copy">부하를 재현하고 SLO·Burn Rate·경고 회귀 테스트로 신뢰성을 수치화합니다.</text>
     <text x="1318" y="32" text-anchor="end" class="footer">github.com/maackia/container-platform-lab</text>
   </g>
 </svg>
