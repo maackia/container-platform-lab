@@ -24,6 +24,11 @@ LATENCY_MAX_VUS="${LATENCY_MAX_VUS:-30}" # 실습 환경에 과도한 부하를 
 LATENCY_REQUESTS_PER_VU="${LATENCY_REQUESTS_PER_VU:-30}" # alert의 1분 for 구간 전에 VU 한 명이 만들 것으로 보수적으로 예상한 느린 요청 수다.
 LATENCY_TARGET_VIOLATION_RATIO="${LATENCY_TARGET_VIOLATION_RATIO:-0.75}" # 72% Fast Burn 기준에 여유를 둔 목표 지연 비율이다.
 
+ERROR_RATE_MIN_VUS="${ERROR_RATE_MIN_VUS:-2}" # 과거 요청이 없어도 일반 오류율 경고를 재현할 최소 VU 수다.
+ERROR_RATE_MAX_VUS="${ERROR_RATE_MAX_VUS:-20}" # 실습 환경에 과도한 오류 요청을 보내지 않도록 허용할 최대 VU 수다.
+ERROR_RATE_REQUESTS_PER_VU="${ERROR_RATE_REQUESTS_PER_VU:-75}" # alert의 1분 for 구간 전에 VU 한 명이 만들 것으로 보수적으로 예상한 5xx 요청 수다.
+ERROR_RATE_TARGET_FAILURE_RATIO="${ERROR_RATE_TARGET_FAILURE_RATIO:-0.16}" # 14.4% Fast Burn 기준에 여유를 둔 목표 5xx 비율이다.
+
 PROMETHEUS_RULES_JSON="" # Prometheus에서 받은 전체 규칙 JSON을 저장한다.
 
 CURRENT_SCENARIO="" # 현재 실행 중인 시나리오 이름을 저장한다.
@@ -31,6 +36,7 @@ CURRENT_K6_PID="" # 백그라운드에서 실행 중인 k6 프로세스 ID를 �
 CURRENT_K6_LOG="" # k6 출력을 저장할 임시 파일 경로다.
 K6_SCRIPT="" # 현재 시나리오에서 실행할 k6 파일 경로를 저장한다.
 K6_LATENCY_VUS="" # 최근 1시간 요청 이력을 기준으로 계산한 latency 시나리오 VU 수를 저장한다.
+K6_ERROR_RATE_VUS="" # 최근 1시간 요청 이력을 기준으로 계산한 error-rate 시나리오 VU 수를 저장한다.
 
 REQUIRED_ALERTS=() # 반드시 FIRING과 RESOLVED를 확인할 경고를 저장한다.
 REQUIRED_RECORDING_RULES=() # 반드시 Prometheus에 로드되어 있어야 할 Recording Rule을 저장한다.
@@ -376,82 +382,118 @@ check_scenario_ready() {
   done
 }
 
-# 최근 1시간 요청 이력으로 Fast Burn을 만들 수 있는 latency VU 수를 계산한다.
+# 최근 1시간 요청 이력으로 Fast Burn을 만들 수 있는 시나리오별 VU 수를 계산한다.
 prepare_scenario_load() {
   local total_expression # 최근 1시간 전체 요청 수를 구할 PromQL을 저장한다.
-  local slow_expression # 최근 1시간 중 1초를 초과한 요청 수를 구할 PromQL을 저장한다.
+  local bad_expression # 최근 1시간 느린 요청 또는 5xx 요청 수를 구할 PromQL을 저장한다.
   local total_requests # 기존 1시간 전체 요청 수를 저장한다.
-  local slow_requests # 기존 1시간 느린 요청 수를 저장한다.
-  local calculation # 필요한 느린 요청 수와 VU 수를 계산한 JSON을 저장한다.
-  local required_requests # 목표 지연 비율을 넘기기 위해 추가로 필요한 느린 요청 수를 저장한다.
-  local required_vus # 필요한 느린 요청을 만들 것으로 예상되는 VU 수를 저장한다.
+  local bad_requests # 기존 1시간 느린 요청 또는 5xx 요청 수를 저장한다.
+  local target_ratio # Fast Burn 기준에 여유를 둔 목표 비율을 저장한다.
+  local threshold_ratio # Alert Rule이 사용하는 실제 Fast Burn 비율을 저장한다.
+  local min_vus # 현재 시나리오에서 보장할 최소 VU 수를 저장한다.
+  local max_vus # 현재 시나리오에서 허용할 최대 VU 수를 저장한다.
+  local requests_per_vu # alert의 for 구간 전 VU당 예상 장애 요청 수를 저장한다.
+  local history_label # 출력에서 장애 요청 종류를 구분할 이름을 저장한다.
+  local calculation # 필요한 장애 요청 수와 VU 수를 계산한 JSON을 저장한다.
+  local required_requests # 목표 비율을 넘기기 위해 추가로 필요한 장애 요청 수를 저장한다.
+  local required_vus # 필요한 장애 요청을 만들 것으로 예상되는 VU 수를 저장한다.
 
-  K6_LATENCY_VUS="" # 다른 시나리오에서 계산한 VU 값이 남지 않도록 초기화한다.
+  K6_LATENCY_VUS="" # 이전 latency 시나리오의 계산 결과를 초기화한다.
+  K6_ERROR_RATE_VUS="" # 이전 error-rate 시나리오의 계산 결과를 초기화한다.
 
-  if [[ "${CURRENT_SCENARIO}" != "latency" ]]; then # 현재 리뷰에서 문제가 된 latency Fast Burn에만 이력 보정을 적용한다.
-    return 0
-  fi
+  case "${CURRENT_SCENARIO}" in # 현재 시나리오에 맞는 메트릭과 안전 범위를 선택한다.
+    latency)
+      total_expression='sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)'
+      bad_expression='clamp_min((sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)) - (sum(increase(app_http_request_duration_seconds_bucket{namespace="platform-lab",job="app",route!~"/health|/metrics",le="1"}[1h])) or vector(0)), 0)'
+      target_ratio="${LATENCY_TARGET_VIOLATION_RATIO}"
+      threshold_ratio="0.72" # 14.4x Burn Rate와 5% 허용 지연 비율을 곱한 실제 경고 기준이다.
+      min_vus="${LATENCY_MIN_VUS}"
+      max_vus="${LATENCY_MAX_VUS}"
+      requests_per_vu="${LATENCY_REQUESTS_PER_VU}"
+      history_label="slow"
+      ;;
 
-  if [[ ! "${LATENCY_MIN_VUS}" =~ ^[1-9][0-9]*$ || ! "${LATENCY_MAX_VUS}" =~ ^[1-9][0-9]*$ || ! "${LATENCY_REQUESTS_PER_VU}" =~ ^[1-9][0-9]*$ ]]; then
-    echo "[FAIL] LATENCY_MIN_VUS, LATENCY_MAX_VUS and LATENCY_REQUESTS_PER_VU must be positive integers." >&2
+    error-rate)
+      total_expression='sum(increase(app_http_requests_total{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)'
+      bad_expression='sum(increase(app_http_requests_total{namespace="platform-lab",job="app",route!~"/health|/metrics",status_code=~"5.."}[1h])) or vector(0)'
+      target_ratio="${ERROR_RATE_TARGET_FAILURE_RATIO}"
+      threshold_ratio="0.144" # 14.4x Burn Rate와 1% 허용 오류율을 곱한 실제 경고 기준이다.
+      min_vus="${ERROR_RATE_MIN_VUS}"
+      max_vus="${ERROR_RATE_MAX_VUS}"
+      requests_per_vu="${ERROR_RATE_REQUESTS_PER_VU}"
+      history_label="5xx"
+      ;;
+
+    *)
+      echo "[FAIL] Cannot prepare load for unsupported scenario: ${CURRENT_SCENARIO}" >&2
+      return 1
+      ;;
+  esac
+
+  if [[ ! "${min_vus}" =~ ^[1-9][0-9]*$ || ! "${max_vus}" =~ ^[1-9][0-9]*$ || ! "${requests_per_vu}" =~ ^[1-9][0-9]*$ ]]; then # VU 관련 설정이 양의 정수인지 확인한다.
+    echo "[FAIL] ${CURRENT_SCENARIO} VU settings must be positive integers." >&2
     return 1
   fi
 
-  if (( LATENCY_MIN_VUS > LATENCY_MAX_VUS )); then # 최소 VU가 안전 상한보다 큰 잘못된 설정인지 확인한다.
-    echo "[FAIL] LATENCY_MIN_VUS cannot be greater than LATENCY_MAX_VUS." >&2
+  if (( min_vus > max_vus )); then # 최소 VU가 안전 상한보다 큰 잘못된 설정인지 확인한다.
+    echo "[FAIL] ${CURRENT_SCENARIO} minimum VUs cannot be greater than maximum VUs." >&2
     return 1
   fi
 
-  total_expression='sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)'
-  slow_expression='clamp_min((sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)) - (sum(increase(app_http_request_duration_seconds_bucket{namespace="platform-lab",job="app",route!~"/health|/metrics",le="1"}[1h])) or vector(0)), 0)'
-
-  total_requests="$(prometheus_query_value "${total_expression}")" # 테스트 전 최근 1시간 전체 요청 수를 조회한다.
-  slow_requests="$(prometheus_query_value "${slow_expression}")" # 테스트 전 최근 1시간 느린 요청 수를 조회한다.
+  total_requests="$(prometheus_query_value "${total_expression}")" # 테스트 직전 최근 1시간 전체 요청 수를 조회한다.
+  bad_requests="$(prometheus_query_value "${bad_expression}")" # 테스트 직전 최근 1시간 장애 요청 수를 조회한다.
 
   if ! calculation="$(
     jq \
       -n \
       --arg total_requests "${total_requests}" \
-      --arg slow_requests "${slow_requests}" \
-      --arg target_ratio "${LATENCY_TARGET_VIOLATION_RATIO}" \
-      --arg requests_per_vu "${LATENCY_REQUESTS_PER_VU}" \
+      --arg bad_requests "${bad_requests}" \
+      --arg target_ratio "${target_ratio}" \
+      --arg threshold_ratio "${threshold_ratio}" \
+      --arg requests_per_vu "${requests_per_vu}" \
       '($total_requests | tonumber) as $total
-       | ($slow_requests | tonumber) as $slow
+       | ($bad_requests | tonumber) as $bad
        | ($target_ratio | tonumber) as $target
+       | ($threshold_ratio | tonumber) as $threshold
        | ($requests_per_vu | tonumber) as $per_vu
-       | if $target <= 0.72 or $target >= 1 then
-           error("LATENCY_TARGET_VIOLATION_RATIO must be greater than 0.72 and less than 1")
+       | if $target <= $threshold or $target >= 1 then
+           error("target ratio must exceed the alert threshold and be less than 1")
          else
-           (($target * $total - $slow) / (1 - $target)) as $raw_required
+           (($target * $total - $bad) / (1 - $target)) as $raw_required
            | (if $raw_required > 0 then ($raw_required | ceil) else 0 end) as $required
            | {
                required_requests: $required,
                required_vus: (($required / $per_vu) | ceil)
              }
          end'
-  )"; then # 1시간 지연 비율을 75%까지 높이는 데 필요한 부하를 계산한다.
-    echo "[FAIL] Could not calculate latency load from one-hour request history." >&2
+  )"; then # 기존 이력을 포함한 비율이 목표값을 넘는 데 필요한 부하를 계산한다.
+    echo "[FAIL] Could not calculate ${CURRENT_SCENARIO} load from one-hour request history." >&2
     return 1
   fi
 
-  required_requests="$(jq -r '.required_requests' <<< "${calculation}")" # 계산 결과에서 필요한 느린 요청 수를 가져온다.
+  required_requests="$(jq -r '.required_requests' <<< "${calculation}")" # 계산 결과에서 필요한 장애 요청 수를 가져온다.
   required_vus="$(jq -r '.required_vus' <<< "${calculation}")" # 계산 결과에서 필요한 VU 수를 가져온다.
 
-  if (( required_vus < LATENCY_MIN_VUS )); then # 일반 p95 경고 재현을 위해 최소 VU 수를 보장한다.
-    required_vus="${LATENCY_MIN_VUS}"
+  if (( required_vus < min_vus )); then # 일반 경고 재현을 위해 시나리오별 최소 VU 수를 보장한다.
+    required_vus="${min_vus}"
   fi
 
-  echo "[INFO] One-hour latency history: total=${total_requests}, slow=${slow_requests}"
-  echo "[INFO] Estimated additional slow requests required: ${required_requests}"
+  echo "[INFO] One-hour ${CURRENT_SCENARIO} history: total=${total_requests}, ${history_label}=${bad_requests}"
+  echo "[INFO] Estimated additional ${history_label} requests required: ${required_requests}"
 
-  if (( required_vus > LATENCY_MAX_VUS )); then # 안전 상한을 넘는 부하는 실행하지 않고 시작 전에 원인을 알린다.
-    echo "[FAIL] Latency Fast Burn requires an estimated ${required_vus} VUs, above the safe limit of ${LATENCY_MAX_VUS}." >&2
-    echo "       Wait for incompatible one-hour history to expire or raise LATENCY_MAX_VUS deliberately." >&2
+  if (( required_vus > max_vus )); then # 안전 상한을 넘는 부하는 실행하지 않고 시작 전에 원인을 알린다.
+    echo "[FAIL] ${CURRENT_SCENARIO} Fast Burn requires an estimated ${required_vus} VUs, above the safe limit of ${max_vus}." >&2
+    echo "       Wait for incompatible one-hour history to expire or raise the scenario maximum deliberately." >&2
     return 1
   fi
 
-  K6_LATENCY_VUS="${required_vus}" # k6 latency.js에 전달할 최종 VU 수를 저장한다.
-  echo "[PASS] Latency load prepared with ${K6_LATENCY_VUS} VUs."
+  if [[ "${CURRENT_SCENARIO}" == "latency" ]]; then # 계산된 값을 현재 k6 시나리오가 읽는 환경변수에 연결한다.
+    K6_LATENCY_VUS="${required_vus}"
+  else
+    K6_ERROR_RATE_VUS="${required_vus}"
+  fi
+
+  echo "[PASS] ${CURRENT_SCENARIO} load prepared with ${required_vus} VUs."
 }
 
 # 현재 선택된 시나리오의 k6 테스트를 백그라운드에서 실행한다.
@@ -468,6 +510,7 @@ start_k6_test() {
     -e TARGET_HOST="${K6_TARGET_HOST}" \
     -e BASE_URL="${K6_BASE_URL}" \
     -e LATENCY_VUS="${K6_LATENCY_VUS:-3}" \
+    -e ERROR_RATE_VUS="${K6_ERROR_RATE_VUS:-2}" \
     "${K6_SCRIPT}" \
     > "${CURRENT_K6_LOG}" 2>&1 &
 
