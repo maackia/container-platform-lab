@@ -25,6 +25,7 @@
 - Prometheus와 Alertmanager readiness
 - 시나리오에 필요한 Alert Rule과 Recording Rule 로드 여부
 - 테스트 시작 전 필수 경고가 Prometheus와 Alertmanager에서 비활성 상태인지 여부
+- latency 실행 전 최근 1시간 요청 이력과 Fast Burn 재현에 필요한 VU 수
 - k6 실행 중 필수 경고의 Prometheus `firing` 전환
 - FIRING 경고가 Alertmanager 활성 목록에 전달됐는지 여부
 - k6 종료 코드와 threshold 통과 여부
@@ -49,7 +50,7 @@ Discord Webhook은 Alertmanager에서 Discord로 보내는 단방향 통신이�
 - `PlatformAppHttpLatencySustainedBurn`
 - `PlatformAppHttpSuccessSustainedBurn`
 
-Sustained Burn은 6시간·30분 창을 함께 사용한다. 현재 테스트뿐 아니라 이전 요청 이력의 영향을 받으므로 깨끗한 환경에서도 항상 같은 시점에 발생한다고 보장할 수 없다. 반면 Fast Burn은 현재 장애 시나리오로 재현하기 쉬워 필수 회귀 조건으로 사용한다.
+Sustained Burn은 6시간·30분 창을 함께 사용한다. 현재 테스트뿐 아니라 이전 요청 이력의 영향을 받으므로 깨끗한 환경에서도 항상 같은 시점에 발생한다고 보장할 수 없다. 반면 Fast Burn은 현재 장애 시나리오로 재현하기 쉬워 필수 회귀 조건으로 사용한다. 다만 latency Fast Burn의 1시간 창에는 이전 정상 요청도 포함되므로, 스크립트가 기존 전체·느린 요청 수를 조회해 필요한 VU 수를 자동으로 조정한다.
 
 ## 3. 실행 전 준비
 
@@ -157,9 +158,15 @@ make alert-regression
 → /api/v1/rules에서 필수 규칙 확인
 → Prometheus 필수 경고 inactive 확인
 → Alertmanager 필수 경고 inactive 확인
+→ 최근 1시간 latency 요청 이력 확인
+→ Fast Burn 재현에 필요한 VU 계산
 ```
 
 초기 경고가 남아 있으면 새로운 실행이 만든 경고와 이전 경고를 구분할 수 없으므로 테스트를 시작하지 않는다.
+
+Latency Fast Burn은 1시간과 5분 Burn Rate가 모두 `14.4x`를 넘어야 한다. 지연시간 SLO의 허용 위반율은 5%이므로 최근 1시간의 느린 요청 비율이 72%를 넘어야 한다. 스크립트는 75%를 목표로 필요한 느린 요청 수를 계산하고, alert의 1분 `for` 구간이 시작되기 전까지 VU 한 명당 30개의 요청을 만드는 것으로 보수적으로 추정해 `LATENCY_VUS`를 결정한다.
+
+계산된 값이 기본 안전 상한인 30 VU를 넘으면 부하를 무조건 실행하지 않고 사전 점검에서 실패한다. 이 경우 1시간 이력이 만료되기를 기다리는 것이 기본 대응이다.
 
 ### FIRING 검증
 
@@ -198,6 +205,10 @@ k6 종료
 | `FIRING_TIMEOUT_SECONDS` | 240초 | Prometheus FIRING 대기 시간 |
 | `ALERTMANAGER_TIMEOUT_SECONDS` | 120초 | Alertmanager 전달·제거 대기 시간 |
 | `RESOLVED_TIMEOUT_SECONDS` | 600초 | Prometheus RESOLVED 대기 시간 |
+| `LATENCY_MIN_VUS` | 3 | latency 시나리오의 최소 VU 수 |
+| `LATENCY_MAX_VUS` | 30 | 자동으로 허용할 latency VU 안전 상한 |
+| `LATENCY_REQUESTS_PER_VU` | 30 | alert의 `for` 구간 전 VU당 예상 느린 요청 수 |
+| `LATENCY_TARGET_VIOLATION_RATIO` | 0.75 | 1시간 지연 위반 비율 목표값 |
 
 예를 들어 RESOLVED를 최대 12분 기다리려면 다음과 같이 실행한다.
 
@@ -241,6 +252,7 @@ make alert-regression-check
 - readiness 실패: Prometheus 또는 Alertmanager Pod와 probe 이벤트를 확인한다.
 - rule not found: PrometheusRule 적용 여부와 Prometheus Rule Health를 확인한다.
 - alert still active: 이전 테스트의 필수 경고가 해제될 때까지 기다린다.
+- latency load exceeds safe limit: 최근 1시간 정상 요청이 만료되기를 기다리거나, 실습 환경의 수용 범위를 확인한 후 `LATENCY_MAX_VUS`를 명시적으로 조정한다.
 
 ### FIRING 제한 시간 초과
 

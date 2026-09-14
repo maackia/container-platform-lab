@@ -19,12 +19,18 @@ FIRING_TIMEOUT_SECONDS="${FIRING_TIMEOUT_SECONDS:-240}" # FIRING 상태를 최�
 ALERTMANAGER_TIMEOUT_SECONDS="${ALERTMANAGER_TIMEOUT_SECONDS:-120}" # Alertmanager 전달과 해제를 최대 2분 동안 기다린다.
 RESOLVED_TIMEOUT_SECONDS="${RESOLVED_TIMEOUT_SECONDS:-600}" # Prometheus RESOLVED를 최대 10분 동안 기다린다.
 
+LATENCY_MIN_VUS="${LATENCY_MIN_VUS:-3}" # 과거 요청이 없어도 일반 p95 경고를 재현할 최소 VU 수다.
+LATENCY_MAX_VUS="${LATENCY_MAX_VUS:-30}" # 실습 환경에 과도한 부하를 주지 않도록 허용할 최대 VU 수다.
+LATENCY_REQUESTS_PER_VU="${LATENCY_REQUESTS_PER_VU:-30}" # alert의 1분 for 구간 전에 VU 한 명이 만들 것으로 보수적으로 예상한 느린 요청 수다.
+LATENCY_TARGET_VIOLATION_RATIO="${LATENCY_TARGET_VIOLATION_RATIO:-0.75}" # 72% Fast Burn 기준에 여유를 둔 목표 지연 비율이다.
+
 PROMETHEUS_RULES_JSON="" # Prometheus에서 받은 전체 규칙 JSON을 저장한다.
 
 CURRENT_SCENARIO="" # 현재 실행 중인 시나리오 이름을 저장한다.
 CURRENT_K6_PID="" # 백그라운드에서 실행 중인 k6 프로세스 ID를 저장한다.
 CURRENT_K6_LOG="" # k6 출력을 저장할 임시 파일 경로다.
 K6_SCRIPT="" # 현재 시나리오에서 실행할 k6 파일 경로를 저장한다.
+K6_LATENCY_VUS="" # 최근 1시간 요청 이력을 기준으로 계산한 latency 시나리오 VU 수를 저장한다.
 
 REQUIRED_ALERTS=() # 반드시 FIRING과 RESOLVED를 확인할 경고를 저장한다.
 REQUIRED_RECORDING_RULES=() # 반드시 Prometheus에 로드되어 있어야 할 Recording Rule을 저장한다.
@@ -197,6 +203,26 @@ prometheus_query() {
     "${PROMETHEUS_URL}/api/v1/query"
 }
 
+# Prometheus instant query 결과에서 단일 숫자 값을 추출한다.
+prometheus_query_value() {
+  local expression="$1" # 실행할 PromQL을 저장한다.
+  local response # Prometheus API 응답을 저장한다.
+
+  if ! response="$(prometheus_query "${expression}")"; then # Prometheus API 요청 성공 여부를 확인한다.
+    echo "[FAIL] Could not query Prometheus metric history." >&2
+    return 1
+  fi
+
+  jq \
+    -er \
+    'if .status == "success" and (.data.result | length) == 1 then
+       .data.result[0].value[1] | tonumber
+     else
+       error("expected one numeric Prometheus result")
+     end' \
+    <<< "${response}" # vector(0)을 포함한 쿼리에서 하나의 숫자 값만 반환한다.
+}
+
 # 지정한 경고가 inactive, pending, firing 중 어떤 상태인지 확인한다.
 get_prometheus_alert_state() {
   local alert_name="$1" # 확인할 경고 이름을 저장한다.
@@ -350,6 +376,84 @@ check_scenario_ready() {
   done
 }
 
+# 최근 1시간 요청 이력으로 Fast Burn을 만들 수 있는 latency VU 수를 계산한다.
+prepare_scenario_load() {
+  local total_expression # 최근 1시간 전체 요청 수를 구할 PromQL을 저장한다.
+  local slow_expression # 최근 1시간 중 1초를 초과한 요청 수를 구할 PromQL을 저장한다.
+  local total_requests # 기존 1시간 전체 요청 수를 저장한다.
+  local slow_requests # 기존 1시간 느린 요청 수를 저장한다.
+  local calculation # 필요한 느린 요청 수와 VU 수를 계산한 JSON을 저장한다.
+  local required_requests # 목표 지연 비율을 넘기기 위해 추가로 필요한 느린 요청 수를 저장한다.
+  local required_vus # 필요한 느린 요청을 만들 것으로 예상되는 VU 수를 저장한다.
+
+  K6_LATENCY_VUS="" # 다른 시나리오에서 계산한 VU 값이 남지 않도록 초기화한다.
+
+  if [[ "${CURRENT_SCENARIO}" != "latency" ]]; then # 현재 리뷰에서 문제가 된 latency Fast Burn에만 이력 보정을 적용한다.
+    return 0
+  fi
+
+  if [[ ! "${LATENCY_MIN_VUS}" =~ ^[1-9][0-9]*$ || ! "${LATENCY_MAX_VUS}" =~ ^[1-9][0-9]*$ || ! "${LATENCY_REQUESTS_PER_VU}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[FAIL] LATENCY_MIN_VUS, LATENCY_MAX_VUS and LATENCY_REQUESTS_PER_VU must be positive integers." >&2
+    return 1
+  fi
+
+  if (( LATENCY_MIN_VUS > LATENCY_MAX_VUS )); then # 최소 VU가 안전 상한보다 큰 잘못된 설정인지 확인한다.
+    echo "[FAIL] LATENCY_MIN_VUS cannot be greater than LATENCY_MAX_VUS." >&2
+    return 1
+  fi
+
+  total_expression='sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)'
+  slow_expression='clamp_min((sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)) - (sum(increase(app_http_request_duration_seconds_bucket{namespace="platform-lab",job="app",route!~"/health|/metrics",le="1"}[1h])) or vector(0)), 0)'
+
+  total_requests="$(prometheus_query_value "${total_expression}")" # 테스트 전 최근 1시간 전체 요청 수를 조회한다.
+  slow_requests="$(prometheus_query_value "${slow_expression}")" # 테스트 전 최근 1시간 느린 요청 수를 조회한다.
+
+  if ! calculation="$(
+    jq \
+      -n \
+      --arg total_requests "${total_requests}" \
+      --arg slow_requests "${slow_requests}" \
+      --arg target_ratio "${LATENCY_TARGET_VIOLATION_RATIO}" \
+      --arg requests_per_vu "${LATENCY_REQUESTS_PER_VU}" \
+      '($total_requests | tonumber) as $total
+       | ($slow_requests | tonumber) as $slow
+       | ($target_ratio | tonumber) as $target
+       | ($requests_per_vu | tonumber) as $per_vu
+       | if $target <= 0.72 or $target >= 1 then
+           error("LATENCY_TARGET_VIOLATION_RATIO must be greater than 0.72 and less than 1")
+         else
+           (($target * $total - $slow) / (1 - $target)) as $raw_required
+           | (if $raw_required > 0 then ($raw_required | ceil) else 0 end) as $required
+           | {
+               required_requests: $required,
+               required_vus: (($required / $per_vu) | ceil)
+             }
+         end'
+  )"; then # 1시간 지연 비율을 75%까지 높이는 데 필요한 부하를 계산한다.
+    echo "[FAIL] Could not calculate latency load from one-hour request history." >&2
+    return 1
+  fi
+
+  required_requests="$(jq -r '.required_requests' <<< "${calculation}")" # 계산 결과에서 필요한 느린 요청 수를 가져온다.
+  required_vus="$(jq -r '.required_vus' <<< "${calculation}")" # 계산 결과에서 필요한 VU 수를 가져온다.
+
+  if (( required_vus < LATENCY_MIN_VUS )); then # 일반 p95 경고 재현을 위해 최소 VU 수를 보장한다.
+    required_vus="${LATENCY_MIN_VUS}"
+  fi
+
+  echo "[INFO] One-hour latency history: total=${total_requests}, slow=${slow_requests}"
+  echo "[INFO] Estimated additional slow requests required: ${required_requests}"
+
+  if (( required_vus > LATENCY_MAX_VUS )); then # 안전 상한을 넘는 부하는 실행하지 않고 시작 전에 원인을 알린다.
+    echo "[FAIL] Latency Fast Burn requires an estimated ${required_vus} VUs, above the safe limit of ${LATENCY_MAX_VUS}." >&2
+    echo "       Wait for incompatible one-hour history to expire or raise LATENCY_MAX_VUS deliberately." >&2
+    return 1
+  fi
+
+  K6_LATENCY_VUS="${required_vus}" # k6 latency.js에 전달할 최종 VU 수를 저장한다.
+  echo "[PASS] Latency load prepared with ${K6_LATENCY_VUS} VUs."
+}
+
 # 현재 선택된 시나리오의 k6 테스트를 백그라운드에서 실행한다.
 start_k6_test() {
   if [[ ! -f "${K6_SCRIPT}" ]]; then # configure_scenario에서 선택한 k6 파일이 존재하는지 확인한다.
@@ -363,6 +467,7 @@ start_k6_test() {
   k6 run \
     -e TARGET_HOST="${K6_TARGET_HOST}" \
     -e BASE_URL="${K6_BASE_URL}" \
+    -e LATENCY_VUS="${K6_LATENCY_VUS:-3}" \
     "${K6_SCRIPT}" \
     > "${CURRENT_K6_LOG}" 2>&1 &
 
@@ -574,6 +679,7 @@ run_scenario() {
 
   configure_scenario "${scenario}" # 시나리오에 맞는 k6 파일과 경고 목록을 설정한다.
   check_scenario_ready # 필요한 규칙과 기존 경고 상태를 확인한다.
+  prepare_scenario_load # 최근 1시간 이력에 맞춰 필요한 부하를 계산하거나 안전하지 않은 실행을 거부한다.
   start_k6_test # 선택된 k6 테스트를 백그라운드에서 실행한다.
   wait_for_prometheus_alerts_firing # 필수 경고가 Prometheus에서 firing이 될 때까지 기다린다.
   wait_for_alertmanager_alerts_active # 필수 경고가 Alertmanager에 전달될 때까지 기다린다.
@@ -657,9 +763,11 @@ main() {
     check)
       configure_scenario "latency"
       check_scenario_ready
+      prepare_scenario_load
 
       configure_scenario "error-rate"
       check_scenario_ready
+      prepare_scenario_load
 
       echo
       echo "[PASS] Alert regression preflight checks completed successfully."
