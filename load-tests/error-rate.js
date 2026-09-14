@@ -4,6 +4,11 @@ import { check, sleep } from "k6";
 // 실행할 때 환경변수로 전달하며, 없으면 아래 기본값을 사용한다.
 const BASE_URL = (__ENV.BASE_URL || "http://127.0.0.1").replace(/\/$/, "");
 const TARGET_HOST = __ENV.TARGET_HOST || "app.platform.local";
+const ERROR_RATE_VUS = Number(__ENV.ERROR_RATE_VUS || "2"); // 최근 1시간 요청 이력에 맞춰 회귀 스크립트가 계산한 VU 수를 사용한다.
+
+if (!Number.isInteger(ERROR_RATE_VUS) || ERROR_RATE_VUS < 1) {
+  throw new Error("ERROR_RATE_VUS must be a positive integer.");
+}
 
 // 이번 테스트에서 HTTP 500은 의도한 응답이다.
 // 따라서 k6의 http_req_failed에는 실패로 기록하지 않는다.
@@ -16,11 +21,11 @@ export const options = {
       startVUs: 0,
 
       stages: [
-        // 30초 동안 사용자를 2명까지 증가시킨다.
-        { duration: "30s", target: 2 },
+        // 30초 동안 사용자를 계산된 목표 수까지 증가시킨다.
+        { duration: "30s", target: ERROR_RATE_VUS },
 
-        // 2분 동안 2명의 사용자가 계속 요청한다.
-        { duration: "2m", target: 2 },
+        // 2분 동안 계산된 수의 사용자가 계속 요청한다.
+        { duration: "2m", target: ERROR_RATE_VUS },
 
         // 30초 동안 사용자를 0명으로 줄인다.
         { duration: "30s", target: 0 },

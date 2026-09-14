@@ -3,6 +3,11 @@ import { check, sleep } from "k6";
 
 const baseUrl = __ENV.BASE_URL || "http://127.0.0.1";
 const targetHost = __ENV.TARGET_HOST || "app.platform.local";
+const latencyVUs = Number(__ENV.LATENCY_VUS || "3"); // 최근 1시간 요청 이력에 맞춰 회귀 스크립트가 계산한 VU 수를 사용한다.
+
+if (!Number.isInteger(latencyVUs) || latencyVUs < 1) {
+  throw new Error("LATENCY_VUS must be a positive integer.");
+}
 
 export const options = {
   scenarios: {
@@ -12,12 +17,12 @@ export const options = {
       startVUs: 0,
 
       stages: [
-        // 15초 동안 사용자를 3명까지 늘린다.
-        { duration: "15s", target: 3 },
+        // 15초 동안 사용자를 계산된 목표 수까지 늘린다.
+        { duration: "15s", target: latencyVUs },
 
         // p95 경고가 FIRING 상태가 될 수 있도록
         // 느린 요청을 2분 30초 동안 유지한다.
-        { duration: "2m30s", target: 3 },
+        { duration: "2m30s", target: latencyVUs },
 
         // 마지막 15초 동안 사용자를 0명으로 줄인다.
         { duration: "15s", target: 0 },

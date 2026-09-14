@@ -1,4 +1,4 @@
-.PHONY: help up down restart ps logs app-logs nginx-logs db-logs db db-count db-recent backup restore reset clean deploy-blog load-test-validate load-test-smoke load-test-baseline load-test-latency load-test-error-rate
+.PHONY: help up down restart ps logs app-logs nginx-logs db-logs db db-count db-recent backup restore reset clean deploy-blog load-test-validate load-test-smoke load-test-baseline load-test-latency load-test-error-rate alert-regression-check alert-regression alert-regression-latency alert-regression-error-rate
 
 K6_BASE_URL ?= http://127.0.0.1
 K6_TARGET_HOST ?= app.platform.local
@@ -8,22 +8,31 @@ K6_RUN = k6 run -e BASE_URL=$(K6_BASE_URL) -e TARGET_HOST=$(K6_TARGET_HOST)
 
 help:
 	@echo "사용 가능한 명령:"
-	@echo "  make up          - 컨테이너 빌드 후 백그라운드 실행"
-	@echo "  make down        - 컨테이너와 네트워크 중지/삭제, volume 유지"
-	@echo "  make restart     - down 후 up 실행"
-	@echo "  make ps          - Compose 서비스 상태 확인"
-	@echo "  make logs        - 전체 로그 follow"
-	@echo "  make app-logs    - app 로그 확인"
-	@echo "  make nginx-logs  - nginx 로그 확인"
-	@echo "  make db-logs     - db 로그 확인"
-	@echo "  make db          - PostgreSQL psql 접속"
-	@echo "  make db-count    - visits row 개수 확인"
-	@echo "  make db-recent   - 최근 visits row 5개 확인"
-	@echo "  make backup      - PostgreSQL data-only 백업"
-	@echo "  make restore     - BACKUP_FILE로 PostgreSQL 데이터 복구"
-	@echo "  make reset       - volume 포함 전체 초기화 후 재실행"
-	@echo "  make clean       - 컨테이너와 네트워크 삭제, volume 유지"
-	@echo "  make deploy-blog	- K3s 블로그를 latest 이미지로 재배포"
+	@echo "  make up                          - 컨테이너 빌드 후 백그라운드 실행"
+	@echo "  make down                        - 컨테이너와 네트워크 중지/삭제, volume 유지"
+	@echo "  make restart                     - down 후 up 실행"
+	@echo "  make ps                          - Compose 서비스 상태 확인"
+	@echo "  make logs                        - 전체 로그 follow"
+	@echo "  make app-logs                    - app 로그 확인"
+	@echo "  make nginx-logs                  - nginx 로그 확인"
+	@echo "  make db-logs                     - db 로그 확인"
+	@echo "  make db                          - PostgreSQL psql 접속"
+	@echo "  make db-count                    - visits row 개수 확인"
+	@echo "  make db-recent                   - 최근 visits row 5개 확인"
+	@echo "  make backup                      - PostgreSQL data-only 백업"
+	@echo "  make restore                     - BACKUP_FILE로 PostgreSQL 데이터 복구"
+	@echo "  make reset                       - volume 포함 전체 초기화 후 재실행"
+	@echo "  make clean                       - 컨테이너와 네트워크 삭제, volume 유지"
+	@echo "  make deploy-blog                 - K3s 블로그를 latest 이미지로 재배포"
+	@echo "  make load-test-validate          - 모든 k6 테스트 파일 문법 검사"
+	@echo "  make load-test-smoke             - k6 smoke 테스트"
+	@echo "  make load-test-baseline          - k6 baseline 테스트"
+	@echo "  make load-test-latency           - k6 지연시간 테스트"
+	@echo "  make load-test-error-rate        - k6 오류율 테스트"
+	@echo "  make alert-regression-check      - 경고 회귀 테스트 사전 점검"
+	@echo "  make alert-regression            - 지연·오류율 경고 회귀 테스트 전체 실행"
+	@echo "  make alert-regression-latency    - 지연시간 경고 회귀 테스트"
+	@echo "  make alert-regression-error-rate - 오류율 경고 회귀 테스트"
 
 up:
 	docker compose up -d --build
@@ -95,3 +104,15 @@ load-test-latency:
 
 load-test-error-rate:
 	$(K6_RUN) load-tests/error-rate.js
+
+alert-regression-check:
+	./scripts/run-alert-regression.sh check
+
+alert-regression:
+	./scripts/run-alert-regression.sh all
+
+alert-regression-latency:
+	./scripts/run-alert-regression.sh latency
+
+alert-regression-error-rate:
+	./scripts/run-alert-regression.sh error-rate
