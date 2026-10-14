@@ -35,8 +35,8 @@ CURRENT_SCENARIO="" # 현재 실행 중인 시나리오 이름을 저장한다.
 CURRENT_K6_PID="" # 백그라운드에서 실행 중인 k6 프로세스 ID를 저장한다.
 CURRENT_K6_LOG="" # k6 출력을 저장할 임시 파일 경로다.
 K6_SCRIPT="" # 현재 시나리오에서 실행할 k6 파일 경로를 저장한다.
-K6_LATENCY_VUS="" # 최근 1시간 요청 이력을 기준으로 계산한 latency 시나리오 VU 수를 저장한다.
-K6_ERROR_RATE_VUS="" # 최근 1시간 요청 이력을 기준으로 계산한 error-rate 시나리오 VU 수를 저장한다.
+K6_LATENCY_VUS="" # 최근 1시간·5분 요청 이력을 기준으로 계산한 latency 시나리오 VU 수를 저장한다.
+K6_ERROR_RATE_VUS="" # 최근 1시간·5분 요청 이력을 기준으로 계산한 error-rate 시나리오 VU 수를 저장한다.
 
 REQUIRED_ALERTS=() # 반드시 FIRING과 RESOLVED를 확인할 경고를 저장한다.
 REQUIRED_RECORDING_RULES=() # 반드시 Prometheus에 로드되어 있어야 할 Recording Rule을 저장한다.
@@ -382,12 +382,13 @@ check_scenario_ready() {
   done
 }
 
-# 최근 1시간 요청 이력으로 Fast Burn을 만들 수 있는 시나리오별 VU 수를 계산한다.
+# Fast Burn의 1시간·5분 창 각각에 필요한 부하를 계산하고 더 큰 VU 수를 사용한다.
 prepare_scenario_load() {
-  local total_expression # 최근 1시간 전체 요청 수를 구할 PromQL을 저장한다.
-  local bad_expression # 최근 1시간 느린 요청 또는 5xx 요청 수를 구할 PromQL을 저장한다.
-  local total_requests # 기존 1시간 전체 요청 수를 저장한다.
-  local bad_requests # 기존 1시간 느린 요청 또는 5xx 요청 수를 저장한다.
+  local total_expression # WINDOW를 시간 창으로 바꿔 사용할 전체 요청 PromQL 템플릿이다.
+  local bad_expression # WINDOW를 시간 창으로 바꿔 사용할 장애 요청 PromQL 템플릿이다.
+  local window # 현재 계산 중인 시간 창을 저장한다.
+  local total_requests # 현재 시간 창의 전체 요청 수를 저장한다.
+  local bad_requests # 현재 시간 창의 느린 요청 또는 5xx 요청 수를 저장한다.
   local target_ratio # Fast Burn 기준에 여유를 둔 목표 비율을 저장한다.
   local threshold_ratio # Alert Rule이 사용하는 실제 Fast Burn 비율을 저장한다.
   local min_vus # 현재 시나리오에서 보장할 최소 VU 수를 저장한다.
@@ -396,15 +397,16 @@ prepare_scenario_load() {
   local history_label # 출력에서 장애 요청 종류를 구분할 이름을 저장한다.
   local calculation # 필요한 장애 요청 수와 VU 수를 계산한 JSON을 저장한다.
   local required_requests # 목표 비율을 넘기기 위해 추가로 필요한 장애 요청 수를 저장한다.
-  local required_vus # 필요한 장애 요청을 만들 것으로 예상되는 VU 수를 저장한다.
+  local window_vus # 현재 시간 창에 필요한 VU 수를 저장한다.
+  local required_vus # 최소 VU와 두 시간 창의 계산값 중 최댓값을 저장한다.
 
   K6_LATENCY_VUS="" # 이전 latency 시나리오의 계산 결과를 초기화한다.
   K6_ERROR_RATE_VUS="" # 이전 error-rate 시나리오의 계산 결과를 초기화한다.
 
   case "${CURRENT_SCENARIO}" in # 현재 시나리오에 맞는 메트릭과 안전 범위를 선택한다.
     latency)
-      total_expression='sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)'
-      bad_expression='clamp_min((sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)) - (sum(increase(app_http_request_duration_seconds_bucket{namespace="platform-lab",job="app",route!~"/health|/metrics",le="1"}[1h])) or vector(0)), 0)'
+      total_expression='sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[WINDOW])) or vector(0)'
+      bad_expression='clamp_min((sum(increase(app_http_request_duration_seconds_count{namespace="platform-lab",job="app",route!~"/health|/metrics"}[WINDOW])) or vector(0)) - (sum(increase(app_http_request_duration_seconds_bucket{namespace="platform-lab",job="app",route!~"/health|/metrics",le="1"}[WINDOW])) or vector(0)), 0)'
       target_ratio="${LATENCY_TARGET_VIOLATION_RATIO}"
       threshold_ratio="0.72" # 14.4x Burn Rate와 5% 허용 지연 비율을 곱한 실제 경고 기준이다.
       min_vus="${LATENCY_MIN_VUS}"
@@ -414,8 +416,8 @@ prepare_scenario_load() {
       ;;
 
     error-rate)
-      total_expression='sum(increase(app_http_requests_total{namespace="platform-lab",job="app",route!~"/health|/metrics"}[1h])) or vector(0)'
-      bad_expression='sum(increase(app_http_requests_total{namespace="platform-lab",job="app",route!~"/health|/metrics",status_code=~"5.."}[1h])) or vector(0)'
+      total_expression='sum(increase(app_http_requests_total{namespace="platform-lab",job="app",route!~"/health|/metrics"}[WINDOW])) or vector(0)'
+      bad_expression='sum(increase(app_http_requests_total{namespace="platform-lab",job="app",route!~"/health|/metrics",status_code=~"5.."}[WINDOW])) or vector(0)'
       target_ratio="${ERROR_RATE_TARGET_FAILURE_RATIO}"
       threshold_ratio="0.144" # 14.4x Burn Rate와 1% 허용 오류율을 곱한 실제 경고 기준이다.
       min_vus="${ERROR_RATE_MIN_VUS}"
@@ -440,50 +442,54 @@ prepare_scenario_load() {
     return 1
   fi
 
-  total_requests="$(prometheus_query_value "${total_expression}")" # 테스트 직전 최근 1시간 전체 요청 수를 조회한다.
-  bad_requests="$(prometheus_query_value "${bad_expression}")" # 테스트 직전 최근 1시간 장애 요청 수를 조회한다.
+  required_vus="${min_vus}" # 일반 경고 재현에 필요한 최소 VU 수부터 시작한다.
 
-  if ! calculation="$(
-    jq \
-      -n \
-      --arg total_requests "${total_requests}" \
-      --arg bad_requests "${bad_requests}" \
-      --arg target_ratio "${target_ratio}" \
-      --arg threshold_ratio "${threshold_ratio}" \
-      --arg requests_per_vu "${requests_per_vu}" \
-      '($total_requests | tonumber) as $total
-       | ($bad_requests | tonumber) as $bad
-       | ($target_ratio | tonumber) as $target
-       | ($threshold_ratio | tonumber) as $threshold
-       | ($requests_per_vu | tonumber) as $per_vu
-       | if $target <= $threshold or $target >= 1 then
-           error("target ratio must exceed the alert threshold and be less than 1")
-         else
-           (($target * $total - $bad) / (1 - $target)) as $raw_required
-           | (if $raw_required > 0 then ($raw_required | ceil) else 0 end) as $required
-           | {
-               required_requests: $required,
-               required_vus: (($required / $per_vu) | ceil)
-             }
-         end'
-  )"; then # 기존 이력을 포함한 비율이 목표값을 넘는 데 필요한 부하를 계산한다.
-    echo "[FAIL] Could not calculate ${CURRENT_SCENARIO} load from one-hour request history." >&2
-    return 1
-  fi
+  for window in 1h 5m; do # Fast Burn이 동시에 검사하는 두 시간 창을 각각 계산한다.
+    total_requests="$(prometheus_query_value "${total_expression//WINDOW/${window}}")" || return 1 # WINDOW를 현재 창으로 바꿔 전체 요청 수를 조회한다.
+    bad_requests="$(prometheus_query_value "${bad_expression//WINDOW/${window}}")" || return 1 # 같은 창의 장애 요청 수를 조회하며 실패하면 부하 준비를 중단한다.
 
-  required_requests="$(jq -r '.required_requests' <<< "${calculation}")" # 계산 결과에서 필요한 장애 요청 수를 가져온다.
-  required_vus="$(jq -r '.required_vus' <<< "${calculation}")" # 계산 결과에서 필요한 VU 수를 가져온다.
+    if ! calculation="$(
+      jq \
+        -n \
+        --arg total_requests "${total_requests}" \
+        --arg bad_requests "${bad_requests}" \
+        --arg target_ratio "${target_ratio}" \
+        --arg threshold_ratio "${threshold_ratio}" \
+        --arg requests_per_vu "${requests_per_vu}" \
+        '($total_requests | tonumber) as $total
+         | ($bad_requests | tonumber) as $bad
+         | ($target_ratio | tonumber) as $target
+         | ($threshold_ratio | tonumber) as $threshold
+         | ($requests_per_vu | tonumber) as $per_vu
+         | if $target <= $threshold or $target >= 1 then
+             error("target ratio must exceed the alert threshold and be less than 1")
+           else
+             (($target * $total - $bad) / (1 - $target)) as $raw_required
+             | (if $raw_required > 0 then ($raw_required | ceil) else 0 end) as $required
+             | {
+                 required_requests: $required,
+                 required_vus: (($required / $per_vu) | ceil)
+               }
+           end'
+    )"; then # 현재 창의 목표 장애 비율을 만족하는 데 필요한 부하를 계산한다.
+      echo "[FAIL] Could not calculate ${CURRENT_SCENARIO} load from ${window} request history." >&2
+      return 1
+    fi
 
-  if (( required_vus < min_vus )); then # 일반 경고 재현을 위해 시나리오별 최소 VU 수를 보장한다.
-    required_vus="${min_vus}"
-  fi
+    required_requests="$(jq -r '.required_requests' <<< "${calculation}")" # 현재 창에 필요한 추가 장애 요청 수를 가져온다.
+    window_vus="$(jq -r '.required_vus' <<< "${calculation}")" # 현재 창에 필요한 VU 수를 가져온다.
 
-  echo "[INFO] One-hour ${CURRENT_SCENARIO} history: total=${total_requests}, ${history_label}=${bad_requests}"
-  echo "[INFO] Estimated additional ${history_label} requests required: ${required_requests}"
+    if (( window_vus > required_vus )); then # 두 창 중 더 많은 부하가 필요한 계산값을 유지한다.
+      required_vus="${window_vus}"
+    fi
+
+    echo "[INFO] ${window} ${CURRENT_SCENARIO} history: total=${total_requests}, ${history_label}=${bad_requests}"
+    echo "[INFO] ${window} estimated additional ${history_label} requests: ${required_requests}, VUs: ${window_vus}"
+  done
 
   if (( required_vus > max_vus )); then # 안전 상한을 넘는 부하는 실행하지 않고 시작 전에 원인을 알린다.
     echo "[FAIL] ${CURRENT_SCENARIO} Fast Burn requires an estimated ${required_vus} VUs, above the safe limit of ${max_vus}." >&2
-    echo "       Wait for incompatible one-hour history to expire or raise the scenario maximum deliberately." >&2
+    echo "       Wait for incompatible 1h/5m history to expire or raise the scenario maximum deliberately." >&2
     return 1
   fi
 
@@ -722,7 +728,7 @@ run_scenario() {
 
   configure_scenario "${scenario}" # 시나리오에 맞는 k6 파일과 경고 목록을 설정한다.
   check_scenario_ready # 필요한 규칙과 기존 경고 상태를 확인한다.
-  prepare_scenario_load # 최근 1시간 이력에 맞춰 필요한 부하를 계산하거나 안전하지 않은 실행을 거부한다.
+  prepare_scenario_load # 최근 1시간·5분 이력에 맞춰 필요한 부하를 계산하거나 안전하지 않은 실행을 거부한다.
   start_k6_test # 선택된 k6 테스트를 백그라운드에서 실행한다.
   wait_for_prometheus_alerts_firing # 필수 경고가 Prometheus에서 firing이 될 때까지 기다린다.
   wait_for_alertmanager_alerts_active # 필수 경고가 Alertmanager에 전달될 때까지 기다린다.
@@ -823,4 +829,6 @@ main() {
   fi
 }
 
-main "$@" # 실행할 때 전달된 모든 인자를 main 함수로 전달한다.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then # 직접 실행할 때만 main을 호출하고 source로 불러오면 함수만 제공한다.
+  main "$@" # 실행할 때 전달된 모든 인자를 main 함수로 전달한다.
+fi

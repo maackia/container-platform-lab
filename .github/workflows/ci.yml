@@ -106,6 +106,12 @@ jobs:
           bash -n scripts/deploy-blog.sh
           make -n deploy-blog
 
+      - name: Validate alert regression load sizing
+        run: |
+          bash -n scripts/run-alert-regression.sh
+          bash -n scripts/tests/test-alert-regression-load.sh
+          bash scripts/tests/test-alert-regression-load.sh
+
   test:
     name: Validate and test container stack
     runs-on: ubuntu-latest

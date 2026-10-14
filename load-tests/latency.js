@@ -3,7 +3,7 @@ import { check, sleep } from "k6";
 
 const baseUrl = __ENV.BASE_URL || "http://127.0.0.1";
 const targetHost = __ENV.TARGET_HOST || "app.platform.local";
-const latencyVUs = Number(__ENV.LATENCY_VUS || "3"); // 최근 1시간 요청 이력에 맞춰 회귀 스크립트가 계산한 VU 수를 사용한다.
+const latencyVUs = Number(__ENV.LATENCY_VUS || "3"); // 최근 1시간·5분 요청 이력에 맞춰 회귀 스크립트가 계산한 VU 수를 사용한다.
 
 if (!Number.isInteger(latencyVUs) || latencyVUs < 1) {
   throw new Error("LATENCY_VUS must be a positive integer.");
