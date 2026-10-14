@@ -83,6 +83,7 @@ kubectl get pods -n monitoring
 - Alertmanager Silence와 critical → warning Inhibition
 - k6 smoke·baseline·latency·error-rate 시나리오
 - Recording Rule, SLI/SLO, rolling 1h Error Budget와 multi-window Burn Rate 경고
+- k6 기반 Prometheus·Alertmanager FIRING → RESOLVED 경고 회귀 테스트
 
 ## 문서
 
@@ -95,6 +96,7 @@ kubectl get pods -n monitoring
 - [Recording Rule과 SLI/SLO·Error Budget](./docs/13-sli-slo-error-budget.md)
 - [Multi-window Burn Rate 경고](./docs/14-multi-window-burn-rate.md)
 - [VM 시간 동기화와 모니터링 복구](./docs/15-vm-time-sync-and-monitoring-recovery.md)
+- [Prometheus·Alertmanager 경고 회귀 테스트](./docs/16-alert-regression-testing.md)
 
 ## 보안 원칙
 

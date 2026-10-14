@@ -21,6 +21,7 @@
 13. [Recording Rule과 SLI/SLO·Error Budget](./13-sli-slo-error-budget.md)
 14. [Multi-window Burn Rate 경고](./14-multi-window-burn-rate.md)
 15. [VM 시간 동기화와 모니터링 복구](./15-vm-time-sync-and-monitoring-recovery.md)
+16. [Prometheus·Alertmanager 경고 회귀 테스트](./16-alert-regression-testing.md)
 
 ## 참고 예제
 

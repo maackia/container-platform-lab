@@ -15,10 +15,11 @@
 → CI/CD와 이미지 배포
 → K3s 애플리케이션 플랫폼
 → 관측성·경고·알림 운영
-→ 신뢰성 엔지니어링  ← 진행 중
+→ 신뢰성 엔지니어링
+→ GitOps  ← 다음
 ```
 
-현재까지 애플리케이션을 컨테이너로 실행하는 단계에서 시작해 Kubernetes 배포, 메트릭 수집, 대시보드, 경고, Discord 통지, Silence와 Inhibition 검증까지 완료했습니다. k6로 정상·지연·오류 트래픽을 반복 재현하고, Recording Rule과 rolling 1h SLI/SLO·Error Budget에서 multi-window Burn Rate 경고까지 연결했습니다. 다음에는 이 검증 흐름을 자동 회귀 테스트로 확장합니다.
+현재까지 애플리케이션을 컨테이너로 실행하는 단계에서 시작해 Kubernetes 배포, 메트릭 수집, 대시보드, 경고, Discord 통지, Silence와 Inhibition 검증까지 완료했습니다. k6로 정상·지연·오류 트래픽을 반복 재현하고, Recording Rule과 rolling 1h SLI/SLO·Error Budget에서 multi-window Burn Rate 경고까지 연결했습니다. 또한 한 명령으로 장애 조건을 만들고 Prometheus·Alertmanager의 FIRING → RESOLVED 생명주기를 판정하는 경고 회귀 테스트까지 자동화했습니다. 다음 단계는 GitOps입니다.
 
 ## 1. Container Foundation — 완료
 
@@ -62,7 +63,7 @@
 
 이 단계에서는 단순히 대시보드를 보는 것을 넘어, 이상 상태를 탐지하고 필요한 알림만 전달하는 운영 피드백 루프를 완성했습니다.
 
-## 5. Reliability Engineering — 진행 중
+## 5. Reliability Engineering — 완료
 
 다음 작업 묶음의 목표는 현재 경고가 우연히 동작하는 수준을 넘어, 동일한 조건을 반복해서 만들고 결과를 수치로 검증하는 것입니다.
 
@@ -74,7 +75,7 @@
 6. 완료 — rolling 1h Error Budget을 계산하고 Grafana에서 시각화했습니다.
 7. 완료 — 5분·30분·1시간·6시간의 Error Budget 소진 속도를 계산하고 Fast Burn·Sustained Burn 경고를 구성했습니다.
 8. 완료 — Grafana에 multi-window Burn Rate를 시각화하고 Discord FIRING·RESOLVED를 검증했습니다.
-9. 다음 — 부하 테스트와 경고 결과를 자동 회귀 테스트로 연결합니다.
+9. 완료 — 부하 테스트와 Prometheus·Alertmanager 경고 결과를 자동 회귀 테스트로 연결했습니다.
 
 완료 기준은 다음과 같습니다.
 
@@ -83,9 +84,12 @@
 → Prometheus에서 Recording Rule 확인
 → Grafana에서 SLO와 Error Budget 확인
 → Multi-window Burn Rate와 경고 상태 확인
-→ 의도한 경고만 Discord로 전달
-→ 부하 종료 후 RESOLVED 확인
+→ Prometheus·Alertmanager FIRING 확인
+→ 부하 종료 후 Prometheus·Alertmanager RESOLVED 확인
+→ Discord FIRING·RESOLVED 수동 확인
 ```
+
+구현 구조와 실행 방법은 [Prometheus·Alertmanager 경고 회귀 테스트](./16-alert-regression-testing.md)에 정리했습니다.
 
 ## 6. GitOps — 계획
 
