@@ -389,6 +389,7 @@ prepare_scenario_load() {
   local window # 현재 계산 중인 시간 창을 저장한다.
   local total_requests # 현재 시간 창의 전체 요청 수를 저장한다.
   local bad_requests # 현재 시간 창의 느린 요청 또는 5xx 요청 수를 저장한다.
+  local good_requests # 장애 기준에 해당하지 않는 기존 요청 수를 저장한다.
   local target_ratio # Fast Burn 기준에 여유를 둔 목표 비율을 저장한다.
   local threshold_ratio # Alert Rule이 사용하는 실제 Fast Burn 비율을 저장한다.
   local min_vus # 현재 시나리오에서 보장할 최소 VU 수를 저장한다.
@@ -464,26 +465,28 @@ prepare_scenario_load() {
          | if $target <= $threshold or $target >= 1 then
              error("target ratio must exceed the alert threshold and be less than 1")
            else
-             (($target * $total - $bad) / (1 - $target)) as $raw_required
-             | (if $raw_required > 0 then ($raw_required | ceil) else 0 end) as $required
+             ([$total - $bad, 0] | max) as $good
+             | (($target * $good / (1 - $target)) | ceil) as $required
              | {
+                 good_requests: $good,
                  required_requests: $required,
                  required_vus: (($required / $per_vu) | ceil)
                }
            end'
-    )"; then # 현재 창의 목표 장애 비율을 만족하는 데 필요한 부하를 계산한다.
+    )"; then # 과거 장애 요청이 모두 만료되어도 기존 정상 요청 대비 목표 비율을 만족할 새 부하를 계산한다.
       echo "[FAIL] Could not calculate ${CURRENT_SCENARIO} load from ${window} request history." >&2
       return 1
     fi
 
-    required_requests="$(jq -r '.required_requests' <<< "${calculation}")" # 현재 창에 필요한 추가 장애 요청 수를 가져온다.
+    good_requests="$(jq -r '.good_requests' <<< "${calculation}")" # 기존 전체 요청에서 장애 요청을 제외한 정상 요청 수를 가져온다.
+    required_requests="$(jq -r '.required_requests' <<< "${calculation}")" # 과거 장애 요청의 도움 없이 필요한 새 장애 요청 수를 가져온다.
     window_vus="$(jq -r '.required_vus' <<< "${calculation}")" # 현재 창에 필요한 VU 수를 가져온다.
 
     if (( window_vus > required_vus )); then # 두 창 중 더 많은 부하가 필요한 계산값을 유지한다.
       required_vus="${window_vus}"
     fi
 
-    echo "[INFO] ${window} ${CURRENT_SCENARIO} history: total=${total_requests}, ${history_label}=${bad_requests}"
+    echo "[INFO] ${window} ${CURRENT_SCENARIO} history: total=${total_requests}, ${history_label}=${bad_requests}, good=${good_requests}"
     echo "[INFO] ${window} estimated additional ${history_label} requests: ${required_requests}, VUs: ${window_vus}"
   done
 

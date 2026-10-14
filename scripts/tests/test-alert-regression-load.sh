@@ -73,6 +73,12 @@ assert_load "latency: recent baseline exceeds safe cap" latency 3450 3000 450 0 
 assert_load "error-rate: recent normal traffic controls VUs" error-rate 5000 3000 2000 0 6
 assert_load "error-rate: recent normal traffic exceeds safe cap" error-rate 13000 3000 10000 0 reject
 
+# 과거 장애 요청이 만료되어도 정상 요청 대비 필요한 새 부하와 안전 상한을 유지한다.
+assert_load "latency: expiring slow requests do not reduce new load" latency 400 280 400 280 12
+assert_load "latency: expiring slow requests cannot hide unsafe load" latency 1200 840 1200 840 reject
+assert_load "error-rate: expiring 5xx requests do not reduce new load" error-rate 1000 140 1000 140 3
+assert_load "error-rate: expiring 5xx requests cannot hide unsafe load" error-rate 11200 1568 11200 1568 reject
+
 # 기존 1시간 이력 보정과 최소 부하 동작도 유지되어야 한다.
 assert_load "latency: one-hour history controls VUs" latency 100 0 0 0 10
 assert_load "latency: one-hour history exceeds safe cap" latency 450 0 0 0 reject
